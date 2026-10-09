@@ -1,0 +1,27 @@
+{
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5286",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_HTTP_PORTS": "8080",
+        "Http__RedirectToHttps": "false",
+        "ConnectionStrings__DefaultConnection": "Data Source=/data/hackaton.db"
+      },
+      "httpPort": 5287,
+      "useSSL": false,
+      "publishAllPorts": false,
+      "containerRunArguments": "--mount type=volume,source=hackaton-vs-sqlite,target=/data"
+    }
+  }
+}
