@@ -1,5 +1,6 @@
 # Guia do backend do hackathon — .NET, C# e DDD
 
+
 Origem: `C:\Projeto\portifolio-back\portfolio-back`.
 Destino: `C:\Projeto\Hackaton-backend`. Análise local: 08/10/2026.
 
