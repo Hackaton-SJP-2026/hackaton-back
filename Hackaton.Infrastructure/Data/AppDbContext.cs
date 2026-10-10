@@ -18,6 +18,7 @@ namespace Hackaton.Infrastructure.Data
         public DbSet<NotificacaoPush> NotificacoesPush => Set<NotificacaoPush>();
         public DbSet<DispositivoPush> DispositivosPush => Set<DispositivoPush>();
         public DbSet<AnexoChamado> AnexosChamado => Set<AnexoChamado>();
+        public DbSet<LancamentoPontoTecnico> LancamentosPontosTecnico => Set<LancamentoPontoTecnico>();
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {

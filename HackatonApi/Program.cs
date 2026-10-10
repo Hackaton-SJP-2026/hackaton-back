@@ -8,6 +8,7 @@ using HackatonApi.Middlewares;
 using HackatonApi.Swagger;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -32,7 +33,7 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        Description = "Token JWT, sem o prefixo Bearer. Login ainda não implementado."
+        Description = "Token JWT retornado por /api/auth/web/login ou /api/auth/app/login."
     });
     // Somente ações protegidas recebem requisito de token na documentação.
     options.OperationFilter<AuthorizationOperationFilter>();
@@ -41,6 +42,7 @@ builder.Services.AddDomain();
 builder.Services.AddApplication();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserResolver, HttpContextUserResolver>();
+builder.Services.AddScoped<IPasswordHasher<Hackaton.Domain.Entities.Usuario>, PasswordHasher<Hackaton.Domain.Entities.Usuario>>();
 
 var persistenceEnabled = builder.Configuration.GetValue<bool>("Persistence:Enabled");
 if (persistenceEnabled)

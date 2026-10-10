@@ -7,8 +7,9 @@ entidades base e serviços genéricos da referência. Não usa CQRS ou MediatR.
 ## Estado atual
 
 As bases das cinco camadas estão implementadas. A API usa SQLite local por padrão, disponibiliza
-Swagger em Development e oferece `GET /api/status`. Ainda não existem entidades de
-negócio, CRUDs concretos, login, emissão de tokens, seed ou migrations do produto.
+Swagger em Development e oferece `GET /api/status`. O modelo inicial inclui usuários,
+prefeituras, unidades, chamados e tabelas operacionais; migrations incluem dados fictícios
+de São José dos Pinhais. Login e emissão de tokens ainda não foram implementados.
 
 SQLite está habilitado por padrão; validação JWT é opcional e ativada por configuração.
 Com autenticação desativada, ações protegidas retornam 401; nenhuma identidade fictícia
@@ -169,19 +170,19 @@ appsettings.Local.example.json é apenas exemplo e não é carregado automaticam
 Arquivos App_Data, *.db, *.db-wal, *.db-shm e *.db-journal estão no .gitignore.
 Compartilhe código e migrations; não versione o banco local.
 
-Não há tabelas de negócio ou migrations ainda. Ao definir entidades, criar maps EF,
-DbSets e migrations. Não foi colocado EnsureCreated no startup, evitando misturar
-criação direta de schema com o fluxo de migrations.
+As migrations de negócio estão em `Hackaton.Infrastructure/Data/Migrations`. Não foi
+colocado EnsureCreated no startup, evitando misturar criação direta de schema com
+o fluxo de migrations. As migrations criam o schema e inserem dados demonstrativos
+de São José dos Pinhais; revise esses registros antes de usar em produção.
 
 ```powershell
 dotnet tool restore
-dotnet ef migrations add Nome --project Hackaton.Infrastructure --startup-project HackatonApi
 dotnet ef database update --project Hackaton.Infrastructure --startup-project HackatonApi
 ```
 
 Com o runtime apenas na pasta local, definir DOTNET_ROOT e DOTNET_ROOT_X64 conforme
-a seção de testes antes de usar dotnet-ef. Não há criação de seed ou migração automática
-no boot. Criar tabelas somente quando o modelo de negócio existir.
+a seção de testes antes de usar dotnet-ef. As migrations não são aplicadas automaticamente
+no boot. O seed é demonstrativo e não cria senhas nem credenciais reais.
 
 SQLite aceita um escritor de cada vez. Esta escolha simplifica o desenvolvimento
 local; os limites de concorrência devem ser avaliados conforme o produto evoluir.
@@ -265,6 +266,46 @@ Verificações realizadas em 08/10/2026: restore e build aprovados (zero erros/a
 GET /api/status e OpenAPI responderam 200; preflight CORS autorizou localhost:5173.
 O servidor de verificação foi encerrado depois dos checks; use o script para iniciá-lo.
 
+## APIs de autenticação e atendimento
+
+Configure `Authentication:Enabled=true`, `JwtSettings:Issuer`, `JwtSettings:Audience` e
+`JwtSettings:SigningKey` (pelo menos 32 bytes) antes de iniciar a API. Sem JWT habilitado,
+os logins retornam 503 e rotas protegidas recusam acesso. Exemplo local:
+
+```powershell
+$env:Authentication__Enabled = 'true'
+$env:JwtSettings__Issuer = 'hackaton-local'
+$env:JwtSettings__Audience = 'hackaton-clients'
+$env:JwtSettings__SigningKey = 'LOCAL_ONLY_CHANGE_THIS_KEY_32_BYTES_MINIMUM'
+```
+
+Login web: `POST /api/auth/web/login`; aceita `Usuario`, `Gestor` ou `Admin`. Login do app:
+`POST /api/auth/app/login`; aceita somente perfil `Tecnico` com registro técnico ativo na
+prefeitura informada. Ambos recebem `Email`, `Senha` e `PrefeituraId` e retornam JWT.
+Gestores/administradores definem senha com `PUT /api/auth/usuarios/{id}/senha`.
+Não há cadastro público, refresh token ou revogação de JWT nesta entrega.
+
+Contas demonstrativas criadas pelas migrations usam a senha local `Teste@12345!`:
+`admin@sjp.example.test`, `solicitante@sjp.example.test` e `tecnico@sjp.example.test`.
+Informe o ID da prefeitura `00000000-0000-0000-0000-000000000001`. Essas contas e senha
+são apenas para desenvolvimento; altere/remova antes de qualquer uso real.
+
+APIs principais:
+
+- Técnico: `GET /api/app/chamados/abertos|pendentes|em-andamento`, `GET /api/app/ranking`,
+  `POST /api/app/posicoes`, e eventos/comentários em `/api/app/chamados/{id}/...`.
+- Usuário: `GET /api/usuario/chamados` (filtros `status`, `prioridade`, `unidadeId`,
+  `desde`, `ate`), `POST /api/usuario/chamados`, eventos e comentários por chamado.
+- Gestor: `GET /api/gestor/chamados` (filtros `status`, `prioridade`, `area`, `unidadeId`,
+  `tecnicoId`, `solicitanteId`, datas e paginação), `GET /api/gestor/tecnicos/posicoes/atuais`
+  e `GET /api/gestor/tecnicos/{tecnicoId}/posicoes?limite=100`.
+
+Chamados e demais dados retornados pelo gestor são limitados à prefeitura do JWT. O técnico
+vê chamados abertos somente em unidades às quais está vinculado; pendentes e em andamento
+precisam estar atribuídos a ele ou ter sua participação registrada. Ranking separa pontos
+confirmados e provisórios; o livro de pontos é preparado, mas a regra automática de crédito
+na conclusão/confirmação ainda não foi implementada.
+
 ## Acrescentar uma funcionalidade no hackathon
 
 1. Definir entidade e necessidade de auditoria; herdar Entity ou EntityAudited.
@@ -285,7 +326,8 @@ para configuração atual, seguir este README e o código.
 
 Verificação da troca para SQLite: restore/build aprovados, 12 testes aprovados,
 abertura de arquivo SQLite temporário validada pela DI e API/status/Swagger conferidos
-com persistência habilitada. Ainda não há tabelas de negócio no arquivo do produto.
+com persistência habilitada. As migrations de negócio adicionadas depois ainda precisam
+ser aplicadas e verificadas no ambiente local.
 
 ## Docker e hospedagem
 
@@ -345,7 +387,7 @@ apenas para testar Swagger localmente. Para parar: docker stop hackaton-api.
 
 No container a connection string é Data Source=/data/hackaton.db.
 O Compose monta sqlite-data em /data, preservando os dados entre recriações do container.
-O arquivo nasce na primeira conexão; ainda não há tabelas de negócio ou auto-migrations.
+O arquivo nasce na primeira conexão; migrations não são aplicadas automaticamente no boot.
 Não usar apenas o filesystem temporário do container para guardar dados importantes.
 
 Um volume nomeado novo recebe as permissões do diretório /data preparado para app.

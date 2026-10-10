@@ -10,6 +10,6 @@ public sealed record UsuarioDto
     [Required, EmailAddress, StringLength(254)] public string Email { get; init; } = string.Empty;
     [StringLength(30)] public string Telefone { get; init; } = string.Empty;
     [Required] public Guid PrefeituraId { get; init; }
-    [Required, RegularExpression("^(Usuario|Tecnico|Admin)$")] public string Papel { get; init; } = "Usuario";
+    [Required, RegularExpression("^(Usuario|Tecnico|Gestor|Admin)$")] public string Papel { get; init; } = "Usuario";
     public bool Ativo { get; init; } = true;
 }

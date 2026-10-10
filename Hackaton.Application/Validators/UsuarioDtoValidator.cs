@@ -11,6 +11,6 @@ public sealed class UsuarioDtoValidator : AbstractValidator<UsuarioDto>
         RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(254);
         RuleFor(x => x.Telefone).MaximumLength(30);
         RuleFor(x => x.PrefeituraId).NotEmpty();
-        RuleFor(x => x.Papel).Must(x => x is "Usuario" or "Tecnico" or "Admin");
+        RuleFor(x => x.Papel).Must(x => x is "Usuario" or "Tecnico" or "Gestor" or "Admin");
     }
 }

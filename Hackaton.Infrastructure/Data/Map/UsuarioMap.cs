@@ -12,6 +12,7 @@ public sealed class UsuarioMap : IEntityTypeConfiguration<Usuario>
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Nome).HasMaxLength(160).IsRequired();
         builder.Property(x => x.Email).HasMaxLength(254).IsRequired();
+        builder.Property(x => x.PasswordHash).HasMaxLength(512);
         builder.HasIndex(x => new { x.PrefeituraId, x.Email }).IsUnique();
         builder.Property(x => x.Telefone).HasMaxLength(30).IsRequired();
         builder.Property(x => x.Papel).HasMaxLength(20).IsRequired();

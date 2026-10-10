@@ -134,3 +134,18 @@ public sealed class AnexoChamadoMap : IEntityTypeConfiguration<AnexoChamado>
         b.HasIndex(x => new { x.ChamadoId, x.TipoAnexo });
     }
 }
+
+public sealed class LancamentoPontoTecnicoMap : IEntityTypeConfiguration<LancamentoPontoTecnico>
+{
+    public void Configure(EntityTypeBuilder<LancamentoPontoTecnico> b)
+    {
+        b.ToTable("LancamentosPontosTecnico"); b.HasKey(x => x.Id);
+        b.HasOne<Tecnico>().WithMany().HasForeignKey(x => x.TecnicoId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<Chamado>().WithMany().HasForeignKey(x => x.ChamadoId).OnDelete(DeleteBehavior.Restrict);
+        b.Property(x => x.Situacao).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Motivo).HasMaxLength(500).IsRequired();
+        b.Property(x => x.ChaveIdempotencia).HasMaxLength(300).IsRequired();
+        b.HasIndex(x => x.ChaveIdempotencia).IsUnique();
+        b.HasIndex(x => new { x.TecnicoId, x.DataHora });
+    }
+}

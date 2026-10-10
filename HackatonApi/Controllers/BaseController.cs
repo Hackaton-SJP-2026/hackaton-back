@@ -17,12 +17,12 @@ namespace HackatonApi.Controllers
         }
 
         [HttpGet]
-        [AllowAnonymous]
+        [Authorize(Roles = "Gestor,Admin")]
         public virtual async Task<IActionResult> Get(CancellationToken cancellationToken)
             => Ok(await _service.GetAllAsync(cancellationToken));
 
         [HttpGet("{id:guid}")]
-        [AllowAnonymous]
+        [Authorize(Roles = "Gestor,Admin")]
         public virtual async Task<IActionResult> Get(Guid id, CancellationToken cancellationToken)
         {
             var dto = await _service.GetAsync(id, cancellationToken);
@@ -30,17 +30,17 @@ namespace HackatonApi.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Gestor,Admin")]
         public virtual async Task<IActionResult> Post([FromBody] TDto dto, CancellationToken cancellationToken)
             => Ok(await _service.CreateAsync(dto, cancellationToken));
 
         [HttpPut("{id:guid}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Gestor,Admin")]
         public virtual async Task<IActionResult> Put(Guid id, [FromBody] TDto dto, CancellationToken cancellationToken)
             => Ok(await _service.UpdateAsync(id, dto, cancellationToken));
 
         [HttpDelete("{id:guid}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Gestor,Admin")]
         public virtual async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {
             await _service.DeleteAsync(id, cancellationToken);
