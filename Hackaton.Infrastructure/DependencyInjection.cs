@@ -19,19 +19,34 @@ namespace Hackaton.Infrastructure
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new InvalidOperationException("ConnectionString 'DefaultConnection' não configurada.");
 
-            var sqlite = new SqliteConnectionStringBuilder(connectionString);
-            if (string.IsNullOrWhiteSpace(sqlite.DataSource))
-                throw new InvalidOperationException("SQLite exige Data Source na connection string.");
-
-            if (sqlite.Mode != SqliteOpenMode.Memory && sqlite.DataSource != ":memory:")
+            var provider = configuration["Persistence:Provider"] ?? "Sqlite";
+            if (provider.Equals("MariaDb", StringComparison.OrdinalIgnoreCase))
             {
-                // Caminho previsível, independente do diretório do terminal.
-                sqlite.DataSource = Path.GetFullPath(sqlite.DataSource,
-                    databaseBasePath ?? Directory.GetCurrentDirectory());
-                Directory.CreateDirectory(Path.GetDirectoryName(sqlite.DataSource)!);
+                var version = configuration["Persistence:ServerVersion"];
+                var serverVersion = string.IsNullOrWhiteSpace(version)
+                    ? ServerVersion.AutoDetect(connectionString)
+                    : new MariaDbServerVersion(Version.Parse(version));
+                services.AddDbContext<MariaDbAppDbContext>(options =>
+                    options.UseMySql(connectionString, serverVersion));
+                services.AddScoped<AppDbContext>(services => services.GetRequiredService<MariaDbAppDbContext>());
             }
+            else if (provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                var sqlite = new SqliteConnectionStringBuilder(connectionString);
+                if (string.IsNullOrWhiteSpace(sqlite.DataSource))
+                    throw new InvalidOperationException("SQLite exige Data Source na connection string.");
 
-            services.AddDbContext<AppDbContext>(options => options.UseSqlite(sqlite.ConnectionString));
+                if (sqlite.Mode != SqliteOpenMode.Memory && sqlite.DataSource != ":memory:")
+                {
+                    // Caminho previsível, independente do diretório do terminal.
+                    sqlite.DataSource = Path.GetFullPath(sqlite.DataSource,
+                        databaseBasePath ?? Directory.GetCurrentDirectory());
+                    Directory.CreateDirectory(Path.GetDirectoryName(sqlite.DataSource)!);
+                }
+
+                services.AddDbContext<AppDbContext>(options => options.UseSqlite(sqlite.ConnectionString));
+            }
+            else throw new InvalidOperationException("Persistence:Provider deve ser MariaDb ou Sqlite.");
             services.AddMemoryCache();
             services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
             services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();

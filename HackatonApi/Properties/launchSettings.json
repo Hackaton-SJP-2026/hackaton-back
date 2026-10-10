@@ -15,13 +15,11 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_HTTP_PORTS": "8080",
-        "Http__RedirectToHttps": "false",
-        "ConnectionStrings__DefaultConnection": "Data Source=/data/hackaton.db"
+        "Http__RedirectToHttps": "false"
       },
       "httpPort": 5287,
       "useSSL": false,
-      "publishAllPorts": false,
-      "containerRunArguments": "--mount type=volume,source=hackaton-vs-sqlite,target=/data"
+      "publishAllPorts": false
     }
   }
 }

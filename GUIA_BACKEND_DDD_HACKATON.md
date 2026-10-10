@@ -307,8 +307,8 @@ dotnet restore Hackaton.sln
 dotnet build Hackaton.sln --no-restore
 dotnet test Hackaton.Tests/Hackaton.Tests.csproj
 dotnet run --project HackatonApi/HackatonApi.csproj
-dotnet ef migrations add Nome -p Hackaton.Infrastructure -s HackatonApi
-dotnet ef database update -p Hackaton.Infrastructure -s HackatonApi
+dotnet ef migrations add Nome --context MariaDbAppDbContext -p Hackaton.Infrastructure -s HackatonApi --output-dir Data/Migrations/MariaDb
+dotnet ef database update --context MariaDbAppDbContext -p Hackaton.Infrastructure -s HackatonApi
 ```
 
 Usar o nome/formato real da solução criada. A origem usa PortfolioApi.slnx e não inclui Portfolio.Tests nele; os testes precisam ser invocados pelo csproj ou incluídos deliberadamente na nova solução. O CI original instala SDK 8 e 9 e roda restore/build/test; não assumir que testa o projeto excluído da solução. O Dockerfile raiz compila/publica pelo csproj da API com SDK/runtime 8, não pela solução.

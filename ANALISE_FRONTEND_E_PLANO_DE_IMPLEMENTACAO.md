@@ -578,3 +578,7 @@ Catálogo vigente: **Aberto, Em Análise e Resolvido**. Esta atualização subst
 Backend: enum StatusChamado, resposta JSON textual e filtro com validação do catálogo. EtapaAtendimento preserva os estados operacionais anteriores. Migration 20261010130004_SepararStatusEtapaChamado converte dados sem apagar histórico e recusa status desconhecidos. Migration ainda não aplicada ao banco operacional nesta entrega.
 
 Escopo atual: somente backend. As alterações de status feitas inicialmente no frontend foram desfeitas a pedido do usuário; sua adaptação fica para a integração futura. Priorização por IA permanece para entrega futura.
+
+## Persistência MariaDB — 10/10/2026
+
+Backend configurado e validado no MariaDB 11.8.9 da Hostinger. Migration inicial específica aplicada; regras de negócio, contratos HTTP, tenant prefeitura e catálogo de status permanecem iguais. Banco novo contém estrutura, sem seeds ou contas permanentes; cadastrar prefeitura/usuários e ajustar VITE_PREFEITURA_ID antes do login real. JWT continua desabilitado por padrão. Registro de configuração, verificações e pendências consolidado na seção inicial do README do backend.

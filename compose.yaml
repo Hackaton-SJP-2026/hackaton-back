@@ -11,12 +11,6 @@ services:
       ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Production}"
       ASPNETCORE_HTTP_PORTS: "8080"
       Persistence__Enabled: "true"
-      ConnectionStrings__DefaultConnection: "Data Source=/data/hackaton.db"
       Http__RedirectToHttps: "false"
       AllowedOrigins__0: "${FRONTEND_ORIGIN:-http://localhost:5173}"
-    volumes:
-      - sqlite-data:/data
     restart: unless-stopped
-
-volumes:
-  sqlite-data:

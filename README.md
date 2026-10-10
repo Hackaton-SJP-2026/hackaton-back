@@ -4,7 +4,43 @@ Esqueleto C#/.NET 8 baseado em `C:\Projeto\portifolio-back\portfolio-back` e no
 [guia DDD](GUIA_BACKEND_DDD_HACKATON.md). Mantém as responsabilidades da Application,
 entidades base e serviços genéricos da referência. Não usa CQRS ou MediatR.
 
-## Estado atual — 10/10/2026
+## MariaDB Hostinger — configuração vigente em 10/10/2026
+
+- [x] Servidor srv1437.hstgr.io:3306 (IP alternativo 193.203.175.85), banco e usuário u204118466_hackaton. A conexão e a senha estão no appsettings.json por autorização do responsável pelo projeto.
+- [x] Versão consultada no servidor: 11.8.9-MariaDB-log; Persistence:ServerVersion=11.8.9 evita detecção remota durante a inicialização.
+- [x] Pomelo.EntityFrameworkCore.MySql 8.0.3 e EF Core/Design/SQLite/dotnet-ef 8.0.13. [Documentação do provedor](https://github.com/PomeloFoundation/Pomelo.EntityFrameworkCore.MySql).
+- [x] MariaDbAppDbContext compartilha entidades e mapeamentos com AppDbContext. Repositórios, UnitOfWork e controllers continuam consumindo AppDbContext; ambos resolvem a mesma instância por escopo no MariaDB.
+- [x] Migration inicial própria 20261010131335_InicialMariaDb aplicada ao banco antes vazio: 14 tabelas de negócio e __EFMigrationsHistory; zero migrations pendentes. As migrations SQLite não são executadas neste contexto.
+- [x] UTF-8 utf8mb4, GUIDs char(36), datas datetime(6), enum persistido em texto e EtapaAtendimento presentes desde a criação. Nenhuma mudança nas regras de negócio ou nos três status públicos.
+- [x] Endpoint de DispositivoPush usa ASCII e collation ascii_bin para manter índice único completo de URL de até 2.000 caracteres dentro do limite do InnoDB. URLs de push devem estar codificadas como URLs ASCII; demais textos usam utf8mb4. Nenhum endpoint de negócio foi criado nesta etapa.
+- [x] Dockerfile, Compose e perfil Docker do Visual Studio deixaram de sobrescrever a conexão com SQLite; usam a configuração MariaDB do appsettings.
+- [x] Conexão remota, migration e escrita/leitura EF conferidas: GUIDs, vínculos, enum/etapa, consulta usada no login e Unicode (incluindo emoji). Transação de teste revertida; nenhum dado demonstrativo foi inserido permanentemente.
+- [x] Suíte de 27 testes aprovada. Testes automatizados usam SQLite temporário/em memória ou geração offline de SQL MariaDB, sem depender da Hostinger.
+- [ ] Cadastrar prefeitura e usuários com PasswordHash válido no banco novo. Os seeds históricos do SQLite não foram importados; o banco MariaDB contém somente a estrutura.
+- [ ] Habilitar/configurar JWT para usar login real; Authentication:Enabled continua false. Definir VITE_PREFEITURA_ID no frontend conforme a prefeitura cadastrada.
+- [ ] Validar Docker em host com Docker disponível e os fluxos futuros de negócio conforme implementados.
+
+### Comandos para a equipe
+
+Executar a partir da raiz do backend:
+
+```powershell
+dotnet restore HackatonApi/HackatonApi.csproj
+dotnet tool restore
+dotnet ef database update --context MariaDbAppDbContext --project Hackaton.Infrastructure --startup-project HackatonApi
+dotnet run --project scripts/MariaDbCheck -- HackatonApi/appsettings.json
+dotnet run --project HackatonApi
+```
+
+MariaDbCheck consulta versão e migrations e verifica escrita/leitura em transação revertida. Para migrations futuras, usar sempre --context MariaDbAppDbContext e --output-dir Data/Migrations/MariaDb:
+
+```powershell
+dotnet ef migrations add NomeDaAlteracao --context MariaDbAppDbContext --project Hackaton.Infrastructure --startup-project HackatonApi --output-dir Data/Migrations/MariaDb
+```
+
+Não usar EnsureCreated no banco operacional: as alterações são aplicadas por migrations, em etapa separada do boot. Para teste local legado, configurar Persistence:Provider=Sqlite junto de uma conexão SQLite e usar --context AppDbContext. A pendência dos seeds históricos SQLite permanece restrita ao legado; não impede o banco MariaDB, cuja estrutura já foi aplicada. As orientações SQLite mais abaixo são registros históricos.
+
+## Estado anterior à troca de banco — 10/10/2026
 
 Este README é o registro de andamento do backend: atualizar implementação, validação e
 pendências após cada entrega. O trabalho atual está restrito ao backend; o frontend será
@@ -219,9 +255,9 @@ ConfirmTransaction salva/commita/invalida cache; RejectTransaction faz rollback.
 Dispose/DisposeAsync descartam transações restantes. A pilha não garante transações
 aninhadas; rollback não restaura automaticamente os valores dos objetos rastreados.
 
-### SQLite local — configuração padrão
+### SQLite local — configuração legada/opcional
 
-O projeto usa Microsoft.EntityFrameworkCore.Sqlite **8.0.2**. Pomelo/MySQL foi removido.
+A configuração vigente usa MariaDB/Pomelo conforme a seção inicial. SQLite 8.0.13 permanece disponível para testes e uso local explícito.
 Não precisa instalar servidor de banco, configurar usuário ou senha.
 
 Em HackatonApi/appsettings.json:
@@ -245,6 +281,7 @@ AddInfrastructure registra DbContext SQLite, cache, IRepository<> e IUnitOfWork;
 IUserResolver já está registrado na API. Para mudar o arquivo nesta sessão:
 
 ```powershell
+$env:Persistence__Provider = 'Sqlite'
 $env:ConnectionStrings__DefaultConnection = 'Data Source=App_Data/outro-banco.db'
 ```
 
@@ -260,7 +297,7 @@ de São José dos Pinhais; revise esses registros antes de usar em produção.
 
 ```powershell
 dotnet tool restore
-dotnet ef database update --project Hackaton.Infrastructure --startup-project HackatonApi
+dotnet ef database update --context AppDbContext --project Hackaton.Infrastructure --startup-project HackatonApi
 ```
 
 Com o runtime apenas na pasta local, definir DOTNET_ROOT e DOTNET_ROOT_X64 conforme
@@ -575,3 +612,17 @@ Aberto, Em Análise e Resolvido; a coluna SQLite usa os nomes internos do enum.
 EtapaAtendimento preserva vínculo, execução, pausa, bloqueio e espera de validação/análise.
 Concluir deve manter Em Análise e confirmar deve marcar Resolvido quando esses comandos
 forem implementados. A simplificação de status não implementa essas transições por si só.
+
+## Integração do login do usuário no frontend — 10/10/2026
+
+- [x] Frontend consome POST /api/auth/web/login com Email, Senha e PrefeituraId; esta etapa aceita somente Usuario.
+- [x] Sessão por aba, Bearer no Axios, logout, expiração/401, rotas protegidas e perfil com identidade real.
+- [x] Erros de login/indisponibilidade tratados; contas demonstrativas disponíveis somente no modo demo.
+- [x] Teste HTTP UserLoginTests valida emissão e uso efetivo de JWT, isolamento por prefeitura, restrição administrativa, senha incorreta, prefeitura incorreta, conta inativa, perfil técnico no login web e token inválido. Usa SQLite temporário/EnsureCreated, sem alterar banco operacional.
+- [ ] Habilitar Authentication__Enabled e configurar JwtSettings__Issuer, Audience e SigningKey no ambiente de execução; JWT permanece desabilitado por padrão.
+- [ ] Resolver/aplicar a cadeia de migrations no banco operacional e provisionar conta Usuario ativa com PasswordHash válido. Não foi criado banco operacional nesta etapa.
+- [ ] Integrar listagem, abertura e detalhes dos chamados do usuário. A conta real vê aviso dessa próxima etapa; a abertura está desabilitada e os dados mockados não são apresentados.
+- [ ] Integrar login e funções reais de técnico, Gestor e Admin em etapas posteriores.
+- [ ] Validar interface em navegador e celular.
+
+O frontend usa VITE_AUTH_MODE=api, VITE_API_URL=http://localhost:5286 e VITE_PREFEITURA_ID por instalação. O ID demonstrativo do seed é 00000000-0000-0000-0000-000000000001. Não expor SigningKey no frontend. Documentação de configuração e comportamento atualizada no README e no plano do frontend. O escopo somente backend descrito na entrega de status permanece histórico; esta etapa foi autorizada para integrar o login no frontend.

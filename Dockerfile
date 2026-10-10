@@ -17,10 +17,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# app é o usuário sem privilégios das imagens oficiais .NET 8.
-# Volume nomeado novo herda as permissões do diretório /data.
-RUN mkdir -p /data && chown app:app /data
-ENV ASPNETCORE_ENVIRONMENT=Production     ASPNETCORE_HTTP_PORTS=8080     Persistence__Enabled=true     ConnectionStrings__DefaultConnection="Data Source=/data/hackaton.db"     Http__RedirectToHttps=false
+# Banco externo MariaDB configurado no appsettings; não exige volume SQLite.
+ENV ASPNETCORE_ENVIRONMENT=Production     ASPNETCORE_HTTP_PORTS=8080     Persistence__Enabled=true     Http__RedirectToHttps=false
 USER app
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "HackatonApi.dll"]

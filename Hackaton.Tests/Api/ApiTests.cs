@@ -22,11 +22,13 @@ public sealed class ApiTests
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment);
-            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+            foreach (var setting in new Dictionary<string, string>
             {
-                ["Persistence:Enabled"] = "false",
+                ["Persistence:Enabled"] = "true",
+                ["Persistence:Provider"] = "Sqlite",
+                ["ConnectionStrings:DefaultConnection"] = "Data Source=:memory:",
                 ["Authentication:Enabled"] = "false"
-            }));
+            }) builder.UseSetting(setting.Key, setting.Value);
             builder.ConfigureServices(services =>
             {
                 services.AddControllers().AddApplicationPart(typeof(TestController).Assembly);

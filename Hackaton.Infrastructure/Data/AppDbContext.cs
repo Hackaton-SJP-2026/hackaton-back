@@ -24,6 +24,8 @@ namespace Hackaton.Infrastructure.Data
         {
         }
 
+        protected AppDbContext(DbContextOptions options) : base(options) { }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
