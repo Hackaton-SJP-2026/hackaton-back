@@ -1,5 +1,6 @@
 using System.Text;
 using Hackaton.Application;
+using Hackaton.Application.Interface;
 using Hackaton.Domain;
 using Hackaton.Domain.Interface;
 using Hackaton.Infrastructure;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using HackatonApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +53,12 @@ builder.Services.AddApplication();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserResolver, HttpContextUserResolver>();
 builder.Services.AddScoped<IPasswordHasher<Hackaton.Domain.Entities.Usuario>, PasswordHasher<Hackaton.Domain.Entities.Usuario>>();
+
+var pushEnabled = builder.Configuration.GetValue<bool>("PushNotification:Enabled");
+builder.Services.Configure<PushNotificationOptions>(builder.Configuration.GetSection("PushNotification"));
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+if (pushEnabled)
+    builder.Services.AddHostedService<PushNotificationWorker>();
 
 var persistenceEnabled = builder.Configuration.GetValue<bool>("Persistence:Enabled");
 if (persistenceEnabled)

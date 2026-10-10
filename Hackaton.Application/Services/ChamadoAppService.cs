@@ -1,6 +1,7 @@
 using FluentValidation;
 using Hackaton.Application.DTOs;
 using Hackaton.Application.Exceptions;
+using Hackaton.Application.Interface;
 using Hackaton.Domain.Entities;
 using Hackaton.Domain.Interface;
 using MapsterMapper;
@@ -14,6 +15,7 @@ public sealed class ChamadoAppService : AppService<Chamado, ChamadoDto>
     private readonly IDomainService<EventoChamado> _eventos;
     private readonly IDomainService<TecnicoUnidadeAtendimento> _tecnicoUnidades;
     private readonly IDomainService<Tecnico> _tecnicos;
+    private readonly IPushNotificationService _pushNotification;
 
     public ChamadoAppService(
         IDomainService<Chamado> chamados,
@@ -24,7 +26,8 @@ public sealed class ChamadoAppService : AppService<Chamado, ChamadoDto>
         IDomainService<Tecnico> tecnicos,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IEnumerable<IValidator<ChamadoDto>> validators)
+        IEnumerable<IValidator<ChamadoDto>> validators,
+        IPushNotificationService pushNotification)
         : base(chamados, unitOfWork, mapper, validators)
     {
         _usuarios = usuarios;
@@ -32,6 +35,7 @@ public sealed class ChamadoAppService : AppService<Chamado, ChamadoDto>
         _eventos = eventos;
         _tecnicoUnidades = tecnicoUnidades;
         _tecnicos = tecnicos;
+        _pushNotification = pushNotification;
     }
 
     public override async Task<ChamadoDto> CreateAsync(ChamadoDto dto, CancellationToken cancellationToken = default)
@@ -51,6 +55,7 @@ public sealed class ChamadoAppService : AppService<Chamado, ChamadoDto>
         var vinculos = await _tecnicoUnidades.GetAllAsync(cancellationToken);
         var vinculoResponsavel = vinculos.FirstOrDefault(x => x.UnidadeAtendimentoId == chamado.UnidadeAtendimentoId
             && x.Ativo && x.Responsavel);
+        var unidade = await _unidades.GetByIdAsync(chamado.UnidadeAtendimentoId, cancellationToken);
         if (vinculoResponsavel is not null)
         {
             var tecnico = await _tecnicos.GetByIdAsync(vinculoResponsavel.TecnicoId, cancellationToken);
@@ -71,6 +76,7 @@ public sealed class ChamadoAppService : AppService<Chamado, ChamadoDto>
             Descricao = "Chamado aberto no sistema.",
             DataHora = DateTime.UtcNow
         });
+        _domainService.Add(chamado);
         if (chamado.TecnicoResponsavelId.HasValue)
         {
             _eventos.Add(new EventoChamado
@@ -80,8 +86,22 @@ public sealed class ChamadoAppService : AppService<Chamado, ChamadoDto>
                 Descricao = "Chamado vinculado automaticamente ao técnico responsável pela unidade de atendimento.",
                 DataHora = DateTime.UtcNow
             });
+
+            var tecnico = await _tecnicos.GetByIdAsync(chamado.TecnicoResponsavelId.Value, cancellationToken);
+            if (tecnico is not null)
+            {
+                var usuarioTecnico = (await _usuarios.GetAllAsync(cancellationToken)).FirstOrDefault(x => x.Id == tecnico.UsuarioId && x.Ativo);
+                if (usuarioTecnico is not null)
+                {
+                    await _pushNotification.EnqueueNotificationAsync(
+                        usuarioTecnico.Id,
+                        chamado.Id,
+                        "Novo chamado atribuído",
+                        $"Você foi vinculado ao chamado {chamado.Id}. Unidade: {unidade?.Nome ?? "N/A"}.",
+                        cancellationToken);
+                }
+            }
         }
-        _domainService.Add(chamado);
         await _unitOfWork.Confirm(cancellationToken);
         return _mapper.Map<ChamadoDto>(chamado);
     }

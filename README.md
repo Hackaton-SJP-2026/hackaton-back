@@ -1,5 +1,193 @@
 # Hackaton Backend
 
+## Integração do app do técnico
+
+Esta seção descreve o fluxo que o aplicativo do técnico deve implementar com a API atual.
+As rotas abaixo usam `/api` como prefixo. Envie JSON com `Content-Type: application/json`;
+nas rotas protegidas, envie `Authorization: Bearer <AccessToken>`.
+
+### 1. Preparar ambiente e autenticação
+
+- Configure a API com `Authentication:Enabled=true`, `JwtSettings:Issuer`, `Audience` e
+  `SigningKey` (mínimo de 32 bytes). O login retorna HTTP 503 enquanto JWT estiver desabilitado.
+- Configure `AllowedOrigins` com a origem do app web/PWA. Em produção, sirva o app por HTTPS.
+- O usuário precisa estar ativo, ter papel `Tecnico`, senha cadastrada e registro de técnico
+  associado. O `PrefeituraId` deve ser o tenant em que a conta está cadastrada.
+- Faça login em `POST /api/auth/app/login` com `{"email":"...","senha":"...","prefeituraId":"<guid>"}`.
+  A resposta inclui `accessToken`, `expiraEm`, `usuarioId`, `nome`, `papel`, `prefeituraId` e
+  `tecnicoId`. Guarde o token de forma segura, use-o nas chamadas seguintes e renove a sessão
+  fazendo login novamente quando expirar. O token atual tem duração configurável, padrão de 8 horas.
+- Esse login é somente para `Tecnico`; contas `Usuario`, `Gestor` e `Admin` não entram no app técnico.
+
+### 2. Registrar o dispositivo para push
+
+O backend usa Web Push. No app web/PWA, registre um service worker, solicite permissão de
+notificações e crie uma subscription com `PushManager.subscribe`. A aplicação precisa conhecer
+a chave pública VAPID do servidor (por exemplo, em uma variável pública de build como
+`VITE_VAPID_PUBLIC_KEY`); nunca inclua a chave privada VAPID no app.
+
+Envie a subscription autenticada para `POST /api/push/dispositivos`:
+
+```json
+{
+  "usuarioId": "<usuarioId retornado no login>",
+  "endpoint": "<subscription.endpoint>",
+  "chavePublica": "<subscription.keys.p256dh>",
+  "chaveAutenticacao": "<subscription.keys.auth>"
+}
+```
+
+O backend associa o endpoint ao usuário do token e atualiza uma subscription existente se o
+navegador a renovar. Registre novamente após login, após mudança da subscription ou quando o
+usuário trocar de dispositivo. A API não oferece atualmente uma rota para consultar a chave
+pública VAPID; ela deve ser disponibilizada ao frontend por configuração. O envio exige
+permissão concedida, subscription ativa e HTTPS (exceto `localhost`). Apps nativos que usam
+FCM/APNs precisam de outra integração; este endpoint espera subscription Web Push.
+
+### 3. Carregar e organizar chamados
+
+Use `GET /api/app/chamados/{categoria}` com uma destas categorias:
+
+| Categoria | Conteúdo |
+| --- | --- |
+| `abertos` | Chamados abertos e ainda sem técnico responsável, da unidade em que o técnico tem vínculo ativo. |
+| `pendentes` | Chamados vinculados diretamente a esse técnico, aguardando início do atendimento (`EtapaAtendimento = Vinculado`). |
+| `em-andamento` | Chamados em andamento, pausados ou bloqueados em que ele é responsável ou participante ativo. |
+
+A resposta contém resumos com `id`, descrição, prioridade, status, etapa, unidade, solicitante,
+responsável e datas. Atualize a lista ao abrir o app, voltar do background, receber push e após
+uma ação que altere o chamado. O backend limita cada lista a 300 itens.
+
+O chamado é atribuído automaticamente quando criado se a unidade tiver um técnico marcado como
+responsável, ativo e disponível. Sem essa condição ele permanece aberto sem responsável. O app
+deve usar a lista `pendentes` para mostrar os chamados atribuídos e `em-andamento` para acompanhar
+os atendimentos já iniciados por fluxos existentes fora das rotas atuais do app técnico.
+
+### 4. Exibir detalhes e acompanhar atividade
+
+Com o `id` do chamado, o técnico pode usar:
+
+- `GET /api/app/chamados/{id}/eventos` para o histórico;
+- `GET /api/app/chamados/{id}/comentarios` e `POST /api/app/chamados/{id}/comentarios` para a conversa;
+- `GET /api/app/chamados/{id}/anexos` para anexos e conteúdo Base64.
+
+Para criar comentário, envie `{"texto":"..."}`. Para registrar uma atualização no histórico,
+use `POST /api/app/chamados/{id}/eventos` com `{"descricao":"..."}` (3 a 4000 caracteres).
+Essas rotas só permitem chamados do tenant do técnico aos quais ele está vinculado como
+responsável ou participante ativo. A API atual não tem uma rota específica de detalhe do chamado;
+combine o resumo da lista com eventos, comentários e anexos.
+
+### 5. Localização durante atendimento
+
+Peça permissão de localização no momento de uso e envie posições para `POST /api/app/posicoes`:
+
+```json
+{
+  "latitude": -25.5,
+  "longitude": -49.2,
+  "precisaoMetros": 15,
+  "chamadoId": "<id do chamado em andamento>"
+}
+```
+
+As coordenadas devem estar nos intervalos válidos, a precisão entre 0 e 10000 metros. A API só
+aceita posição para chamado em etapa `Em andamento` pertencente ao técnico ou com participação
+ativa. O app deve enviar localização apenas com consentimento e enquanto a funcionalidade estiver
+em uso; não envie localização sem um chamado válido.
+
+### 6. Concluir chamado
+
+Envie `POST /api/app/chamados/{id}/finalizar` com uma foto de entrega e, opcionalmente, descrição:
+
+```json
+{
+  "fotoBase64": "<base64 da imagem, com ou sem prefixo data URI>",
+  "tipoConteudo": "image/jpeg",
+  "descricao": "Serviço concluído"
+}
+```
+
+São aceitos JPEG, PNG ou WEBP, com até 8 MB. O chamado precisa estar em `Em andamento` e atribuído
+diretamente ao técnico autenticado. A conclusão muda a etapa para `Aguardando validação`, cria
+anexo e evento, e credita pontos provisórios uma única vez. Ela não significa que o solicitante já
+validou o serviço; depois da resposta, atualize o chamado/listas e mostre pontos e etapa retornados.
+
+### 7. Ranking
+
+`GET /api/app/ranking` retorna o ranking do tenant. O período é opcional: use `desde` e `ate` em
+ISO 8601 para filtrar (máximo de 366 dias). A resposta distingue pontos confirmados e provisórios.
+
+### Fluxo e limitações atuais da API
+
+O fluxo suportado no app é: login → registrar push → consultar listas → acompanhar eventos,
+comentários e anexos → enviar posição durante atendimento em andamento → finalizar → atualizar
+listas e ranking. Push pode levar o app ao chamado, mas o payload atual contém apenas `tipo=chamado`,
+sem o ID do chamado; para abrir diretamente um chamado ao tocar na notificação, o frontend precisa
+refazer a consulta ou o backend precisa incluir o ID no payload.
+
+**A API ainda não fornece ações do técnico para aceitar/iniciar, pausar, retomar, bloquear ou
+cancelar atendimento, nem rota para solicitar a mudança da etapa `Vinculado` para `Em andamento`.**
+Não implemente esses botões como se a API já persistisse tais transições; essas rotas precisam ser
+criadas no backend para completar esse trecho do fluxo.
+
+### Envio de notificações push
+
+Ao criar um chamado que seja atribuído automaticamente ao técnico responsável e disponível da
+unidade, a API grava uma notificação pendente junto com o chamado. O worker envia aos dispositivos
+ativos registrados para esse usuário. Configure `PUSHNOTIFICATION__ENABLED=true`,
+`PUSHNOTIFICATION__PUBLICKEY`, `PUSHNOTIFICATION__PRIVATEKEY` e `PUSHNOTIFICATION__SUBJECT` no
+ambiente da API. A chave pública correspondente deve ser disponibilizada ao app; a privada fica
+somente no servidor.
+
+Exemplo do fluxo no cliente (solicite permissão a partir de uma ação explícita do usuário):
+
+```javascript
+const permission = await Notification.requestPermission();
+if (permission !== "granted") return;
+
+await navigator.serviceWorker.register("/service-worker.js");
+const ready = await navigator.serviceWorker.ready;
+let subscription = await ready.pushManager.getSubscription();
+if (!subscription) {
+  subscription = await ready.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+  });
+}
+
+const keys = subscription.toJSON().keys;
+await fetch(`${API_URL}/api/push/dispositivos`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  },
+  body: JSON.stringify({
+    usuarioId,
+    endpoint: subscription.endpoint,
+    chavePublica: keys.p256dh,
+    chaveAutenticacao: keys.auth,
+  }),
+});
+```
+
+`urlBase64ToUint8Array` deve converter a chave VAPID Base64 URL-safe para `Uint8Array`, como
+exigido por `PushManager.subscribe`. Implemente também o evento `push` no service worker para
+ler `event.data.json()` e chamar `self.registration.showNotification(payload.title, { body:
+payload.body, icon: payload.icon, badge: payload.badge, tag: payload.tag, data: payload.data })`.
+No evento `notificationclick`, feche a notificação e abra ou foque uma janela do app. Como o
+payload atual não tem o ID do chamado, direcione para a lista e atualize-a ao abrir.
+
+Trate respostas da API de forma previsível: `401` significa token ausente/inválido/expirado e
+deve levar a novo login; `403` indica papel ou acesso incompatível; `404` pode significar chamado
+inexistente ou sem acesso; `400` indica dados inválidos; `503` no login significa autenticação
+desabilitada no ambiente. Não faça logout por falhas temporárias de rede.
+
+O worker roda uma vez por minuto. Sem chaves VAPID, permissão do usuário ou dispositivo registrado,
+a mensagem não aparece no aparelho. Na implementação atual, uma notificação sem dispositivo ativo
+é marcada como enviada sem entrega; por isso, registre a subscription antes da atribuição. Se o
+usuário negar a permissão, mantenha o uso normal do app e não bloqueie o fluxo de chamados.
+
 Esqueleto C#/.NET 8 baseado em `C:\Projeto\portifolio-back\portfolio-back` e no
 [guia DDD](GUIA_BACKEND_DDD_HACKATON.md). Mantém as responsabilidades da Application,
 entidades base e serviços genéricos da referência. Não usa CQRS ou MediatR.
