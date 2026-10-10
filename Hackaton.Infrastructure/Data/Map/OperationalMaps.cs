@@ -27,6 +27,8 @@ public sealed class TecnicoMap : IEntityTypeConfiguration<Tecnico>
         b.Property(x => x.Disponibilidade).HasMaxLength(30).IsRequired();
         b.Property(x => x.FotoUrl).HasMaxLength(1000);
         b.Property(x => x.MotivoIndisponibilidade).HasMaxLength(500);
+        b.Property(x => x.Pontos).IsRequired();
+        b.Property(x => x.Patente).HasMaxLength(30).IsRequired();
     }
 }
 
@@ -38,6 +40,7 @@ public sealed class TecnicoUnidadeAtendimentoMap : IEntityTypeConfiguration<Tecn
         b.HasOne<Tecnico>().WithMany().HasForeignKey(x => x.TecnicoId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne<UnidadeAtendimento>().WithMany().HasForeignKey(x => x.UnidadeAtendimentoId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => new { x.TecnicoId, x.UnidadeAtendimentoId }).IsUnique();
+        b.HasIndex(x => x.UnidadeAtendimentoId).IsUnique().HasFilter("\"Responsavel\" = 1");
     }
 }
 
@@ -130,6 +133,7 @@ public sealed class AnexoChamadoMap : IEntityTypeConfiguration<AnexoChamado>
         b.Property(x => x.NomeArquivo).HasMaxLength(255).IsRequired();
         b.Property(x => x.TipoConteudo).HasMaxLength(150).IsRequired();
         b.Property(x => x.Localizacao).HasMaxLength(2000).IsRequired();
+        b.Property(x => x.ConteudoBase64).HasColumnType("TEXT");
         b.Property(x => x.TipoAnexo).HasMaxLength(30).IsRequired();
         b.HasIndex(x => new { x.ChamadoId, x.TipoAnexo });
     }

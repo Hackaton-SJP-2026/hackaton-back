@@ -14,6 +14,7 @@ public sealed class ChamadoDtoValidator : AbstractValidator<ChamadoDto>
         RuleFor(x => x.Natureza).Must(x => x is "Hardware" or "Software");
         RuleFor(x => x.Modalidade).Must(x => x is "Remoto" or "Presencial");
         RuleFor(x => x.Prioridade).Must(x => x is "Baixa" or "Normal" or "Alta" or "Urgente");
+        RuleFor(x => x.NivelComplexidade).Must(x => x is "Baixo" or "Médio" or "Alto");
         RuleFor(x => x.Equipamento).MaximumLength(160);
         RuleFor(x => x.Contato).MaximumLength(100);
         RuleFor(x => x.PessoasAfetadas).GreaterThan(0);

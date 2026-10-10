@@ -93,11 +93,12 @@ Prioridade e pontos devem seguir regra configurada, sem permitir que o solicitan
 Regra adicionada: o chamado deve conter o campo `unidade_antecedimento` (ou `unidade_atendimento`, conforme convenção final da equipe) e esse valor deve ser preenchido a partir de um cadastro de unidades no portal web. A unidade representa o local/entidade de atendimento e deve ter identidade própria dentro do sistema.
 
 - [ ] O administrador cadastra unidades de atendimento via web.
-- [ ] Cada técnico pode ser responsável por uma ou mais unidades cadastradas.
-- [ ] Quando um chamado é aberto para uma unidade, o sistema identifica automaticamente os técnicos responsáveis por essa unidade.
-- [ ] O chamado é vinculado imediatamente ao técnico responsável, sem necessidade de atribuição manual adicional.
+- [x] Cada técnico pode ser vinculado a uma ou mais unidades; cada unidade tem no máximo um responsável principal ativo.
+- [x] Quando um chamado é aberto para uma unidade, o sistema localiza o responsável principal ativo e disponível.
+- [x] Havendo responsável disponível, o chamado é vinculado imediatamente e gera evento automático de atribuição.
+- [x] Sem responsável principal disponível, o chamado permanece aberto e sem técnico responsável.
 - [ ] O vínculo imediato gera aviso/push para o técnico responsável, com identificação da unidade, do chamado e da prioridade.
-- [ ] Se mais de um técnico estiver vinculado à mesma unidade, a regra de atribuição deve obedecer à política configurada: primeiro técnico elegível, fila de disponibilidade, ou atribuição explícita pelo administrador.
+- [x] Outros técnicos podem permanecer vinculados à unidade como equipe de atendimento; a designação principal é explícita pelo gestor e única por unidade.
 - [ ] A unidade deve constar no cadastro do chamado e no painel de chamados/atendimento para filtrar, consultar e rastrear demandas por local.
 - [ ] O responsável pela unidade recebe todos os chamados abertos para essa unidade e não apenas os chamados de outras áreas/secretarias.
 - [ ] O vínculo por unidade deve coexistir com as regras de cooperação, secretaria e proximidade já previstas; a atribuição por unidade não elimina a necessidade de validar elegibilidade e disponibilidade.
@@ -544,8 +545,8 @@ As referências anteriores a atribuição/notificação por secretaria ficam sub
 - `Prefeitura` é o cliente/tenant. Usuários, técnicos, unidades e chamados devem ficar vinculados e isolados por prefeitura.
 - Não criar tabela `Secretarias` nesta etapa. As unidades são pontos de atendimento de uma prefeitura.
 - `UnidadeAtendimento` possui nome, endereço e coordenadas obrigatórias de latitude/longitude para permitir localização e proximidade. A migration mantém unidades legadas sem coordenadas como nulas, mas novos cadastros devem informar ambas.
-- `Tecnico` é um perfil próprio ligado a um usuário. Um técnico pode atender várias unidades e uma unidade pode ter vários técnicos; a relação é `TecnicoUnidadeAtendimento`.
-- A unidade escolhida no chamado determina a prefeitura e os técnicos candidatos vinculados a ela. A elegibilidade e disponibilidade ainda precisam ser verificadas antes de atribuição.
+- `Tecnico` é um perfil próprio ligado a um usuário. Um técnico pode atender várias unidades e uma unidade pode ter vários técnicos; a relação é `TecnicoUnidadeAtendimento`, com indicação de responsável principal.
+- A unidade escolhida no chamado determina a prefeitura e os técnicos elegíveis. Na abertura, somente o responsável principal ativo e disponível recebe atribuição automática; se não existir, o chamado fica `Aberto`, sem responsável. A unicidade do responsável é protegida pelo banco.
 
 ### Histórico, comentários e participantes
 
@@ -558,14 +559,16 @@ As referências anteriores a atribuição/notificação por secretaria ficam sub
 
 - `PosicoesTecnico` armazena latitude, longitude, precisão, data/hora e chamado associado quando houver. Segue a regra anterior de captura durante execução, a cada 10 minutos, interrompida em pausa ou conclusão.
 - `NotificacoesPush` persiste notificações pendentes, enviadas e com falha, incluindo tentativas, horário e chave de deduplicação. `DispositivosPush` guarda endpoints/credenciais de inscrição por usuário para permitir o envio ao dispositivo.
-- `AnexosChamado` guarda metadados e localização do arquivo, autor e tipo. Arquivos devem ficar em armazenamento de objetos/arquivos apropriado; não embutir binários grandes no registro relacional.
-- Para concluir chamado, é obrigatório existir um anexo de imagem classificado como `FotoEntrega`. A conclusão deve validar esse anexo no backend, persistir evento de conclusão e mudar o estado na mesma operação. Só registrar o metadado do anexo não comprova que o upload foi concluído com sucesso.
+- `AnexosChamado` guarda metadados, autor, tipo e conteúdo da imagem de entrega em Base64 no banco, conforme decisão do produto. A API aceita JPEG, PNG ou WEBP até 8 MB e valida formato, tamanho e assinatura do arquivo.
+- Para concluir tecnicamente o atendimento, o responsável envia uma imagem `FotoEntrega`. A API grava anexo, evento `ConclusaoTecnica` e etapa `Aguardando validação` na mesma transação. O status permanece `Em Análise` até confirmação do solicitante, que então muda para `Resolvido`.
+- O nível de complexidade do chamado define a pontuação no backend: Baixo = 5, Médio = 10, Alto = 15; prioridade `Alta` acrescenta 5 pontos. Chamado aberto pelo usuário inicia em Baixo; gestor pode definir a complexidade. Pontos não são aceitos do cliente. Na conclusão técnica, o lançamento idempotente soma pontos ao saldo do técnico e recalcula sua patente. O crédito fica provisório conforme política vigente; o progresso da patente considera o saldo acumulado.
+- As patentes são Soldado raso (0), Soldado (100), Cabo (250), Sargento (500), Subtenente (800), Tenente (1200), Capitão (1800), Major (2600), Coronel (3600) e General (5000). O ranking retorna patente atual/próxima, símbolo, pontos faltantes, percentual da faixa e classes Tailwind.
 
 ### Tabelas presentes no modelo atual
 
 `Prefeituras`, `Usuarios`, `UnidadesAtendimento`, `Chamados`, `Tecnicos`, `TecnicoUnidadeAtendimento`, `EventosChamado`, `ComentariosChamado`, `ParticipantesChamado`, `PosicoesTecnico`, `NotificacoesPush`, `DispositivosPush` e `AnexosChamado`.
 
-Essa lista descreve o modelo/schema preparado, não significa que upload de arquivos, envio real de push, atribuição automática, operações de fechamento ou autorização multi-tenant estejam completos. A migration cria uma prefeitura inicial de São José dos Pinhais e dados fictícios de demonstração. A foto e a inscrição de push semeadas são metadados/valores de teste, não arquivos ou dispositivos reais.
+Essa lista descreve o modelo/schema preparado. Foto de entrega é salva em Base64; push real e confirmação do solicitante continuam fora deste escopo. Migrations posteriores acrescentam responsável de unidade, conteúdo Base64, pontos no técnico/chamado e patente. A migration cria uma prefeitura inicial de São José dos Pinhais e dados fictícios de demonstração. A inscrição de push semeada é apenas um valor de teste.
 
 
 ## Status do chamado — 10/10/2026

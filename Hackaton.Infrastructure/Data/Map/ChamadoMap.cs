@@ -15,6 +15,8 @@ public sealed class ChamadoMap : IEntityTypeConfiguration<Chamado>
         builder.Property(x => x.Natureza).HasMaxLength(20).IsRequired();
         builder.Property(x => x.Modalidade).HasMaxLength(20).IsRequired();
         builder.Property(x => x.Prioridade).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.NivelComplexidade).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Pontos).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(40).IsRequired();
         builder.Property(x => x.EtapaAtendimento).HasMaxLength(40).IsRequired();
         builder.Property(x => x.Equipamento).HasMaxLength(160);

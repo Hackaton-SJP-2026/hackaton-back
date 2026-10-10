@@ -10,6 +10,8 @@ public sealed class Chamado : EntityAudited
     public string Natureza { get; set; } = string.Empty;
     public string Modalidade { get; set; } = string.Empty;
     public string Prioridade { get; set; } = "Normal";
+    public string NivelComplexidade { get; set; } = "Baixo";
+    public int Pontos { get; set; } = 5;
     public StatusChamado Status { get; set; } = StatusChamado.Aberto;
     public string EtapaAtendimento { get; set; } = "Aberto";
     public string? Equipamento { get; set; }

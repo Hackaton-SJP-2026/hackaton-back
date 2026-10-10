@@ -382,13 +382,42 @@ APIs principais:
   `desde`, `ate`), `POST /api/usuario/chamados`, eventos e comentários por chamado.
 - Gestor: `GET /api/gestor/chamados` (filtros `status`, `prioridade`, `area`, `unidadeId`,
   `tecnicoId`, `solicitanteId`, datas e paginação), `GET /api/gestor/tecnicos/posicoes/atuais`
-  e `GET /api/gestor/tecnicos/{tecnicoId}/posicoes?limite=100`.
+  e `GET /api/gestor/tecnicos/{tecnicoId}/posicoes?limite=100`; também pode consultar anexos
+  por `GET /api/gestor/chamados/{chamadoId}/anexos`.
+- Gestão de técnicos (gestor/admin): `GET/POST /api/gestor/tecnicos`, `GET
+  /api/gestor/tecnicos/{tecnicoId}` e `PUT /api/gestor/tecnicos/{tecnicoId}/unidades`.
+  A criação cadastra o usuário com papel `Tecnico`, senha inicial e vínculos opcionais.
+  Cada vínculo informa `Responsavel`; uma unidade pode ter no máximo um responsável principal.
+
+Ao abrir um chamado, a API atribui automaticamente o responsável principal ativo e disponível
+da unidade e registra evento de vinculação. Se a unidade não tiver responsável elegível,
+o chamado permanece `Aberto` e sem técnico responsável. A migration
+`20261010150005_TecnicoResponsavelUnidade` adiciona essa regra ao banco.
+
+O técnico envia suas coordenadas com `POST /api/app/posicoes`, durante um chamado em andamento.
+Payload: `{"latitude":-25.5,"longitude":-49.2,"precisaoMetros":12,"chamadoId":"<guid>"}`.
+O horário é definido pelo servidor e as posições ficam disponíveis nas consultas do gestor.
+
+Para registrar a conclusão técnica com comprovante, use
+`POST /api/app/chamados/{chamadoId}/finalizar` com `FotoBase64`, `TipoConteudo` (`image/jpeg`,
+`image/png` ou `image/webp`) e, opcionalmente, `Descricao`. A imagem pode ser Base64 puro ou
+data URI, tem limite de 8 MB e é armazenada em Base64 na tabela `AnexosChamado`. A operação grava
+o anexo e o evento na mesma transação e move a etapa para `Aguardando validação`; o status só
+passa a `Resolvido` após confirmação do solicitante. Técnico responsável e solicitante podem
+consultar anexos em `GET /api/app/chamados/{id}/anexos` e `GET /api/usuario/chamados/{id}/anexos`.
+Gestores também podem consultar pelo endpoint acima. A migration `20261010170006_ConteudoBase64Anexo`
+adiciona a coluna do conteúdo.
 
 Chamados e demais dados retornados pelo gestor são limitados à prefeitura do JWT. O técnico
 vê chamados abertos somente em unidades às quais está vinculado; pendentes e em andamento
-precisam estar atribuídos a ele ou ter sua participação registrada. Ranking separa pontos
-confirmados e provisórios; o livro de pontos é preparado, mas a regra automática de crédito
-na conclusão/confirmação ainda não foi implementada.
+precisam estar atribuídos a ele ou ter sua participação registrada. O ranking informa pontuação
+do período e acumulada, patente, símbolo, próxima patente, pontos restantes, percentual e classes
+Tailwind. A pontuação por chamado é calculada no backend pela complexidade (Baixo=5, Médio=10,
+Alto=15); prioridade `Alta` acrescenta 5 pontos. Chamado aberto pelo usuário começa em `Baixo`,
+o gestor pode definir a complexidade e `Pontos` não é aceito do cliente. Na conclusão técnica,
+o valor calculado é creditado uma única vez como provisório, somado ao campo `Pontos` do técnico
+e sua patente é atualizada. A migration `20261010190007_PontosEPatenteTecnico`
+adiciona os campos de saldo/patente; `20261010200008_PontosChamado` adiciona pontos ao chamado.
 
 ## Acrescentar uma funcionalidade no hackathon
 

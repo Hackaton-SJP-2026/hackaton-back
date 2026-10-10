@@ -76,6 +76,21 @@ public sealed class GestorController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("chamados/{chamadoId:guid}/anexos")]
+    public async Task<IActionResult> AnexosChamado(Guid chamadoId, CancellationToken cancellationToken)
+    {
+        if (!Tenant(out var prefeituraId)) return Forbid();
+        var pertenceAoTenant = await _db.Chamados.AsNoTracking().AnyAsync(c => c.Id == chamadoId
+            && _db.UnidadesAtendimento.Any(u => u.Id == c.UnidadeAtendimentoId && u.PrefeituraId == prefeituraId), cancellationToken);
+        if (!pertenceAoTenant) return NotFound();
+        var anexos = await _db.AnexosChamado.AsNoTracking().Where(x => x.ChamadoId == chamadoId)
+            .OrderBy(x => x.DataHora).Select(x => new
+            {
+                x.Id, x.NomeArquivo, x.TipoConteudo, x.TamanhoBytes, x.TipoAnexo, x.DataHora, x.ConteudoBase64
+            }).ToListAsync(cancellationToken);
+        return Ok(anexos);
+    }
+
     [HttpGet("tecnicos/{tecnicoId:guid}/posicoes")]
     public async Task<IActionResult> HistoricoPosicoes(Guid tecnicoId, [FromQuery] int limite = 100,
         CancellationToken cancellationToken = default)
@@ -107,7 +122,7 @@ public sealed class GestorController : ControllerBase
         var users = await _db.Usuarios.AsNoTracking().Where(x => userIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.Nome, cancellationToken);
         return tickets.Select(x => new ChamadoResumoDto(x.Id, x.Descricao, x.Status, x.Prioridade,
-            x.AreaAtendimento, x.Natureza, x.Modalidade, x.UnidadeAtendimentoId,
+            x.NivelComplexidade, x.Pontos, x.AreaAtendimento, x.Natureza, x.Modalidade, x.UnidadeAtendimentoId,
             units.GetValueOrDefault(x.UnidadeAtendimentoId, ""), x.SolicitanteId,
             users.GetValueOrDefault(x.SolicitanteId, ""), x.TecnicoResponsavelId,
             x.CreationTime, x.InicioAtendimento, x.EtapaAtendimento)).ToList();

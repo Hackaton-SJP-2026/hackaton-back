@@ -14,6 +14,8 @@ public sealed record ChamadoDto
     [Required, RegularExpression("^(Hardware|Software)$")] public string Natureza { get; init; } = string.Empty;
     [Required, RegularExpression("^(Remoto|Presencial)$")] public string Modalidade { get; init; } = string.Empty;
     [Required, RegularExpression("^(Baixa|Normal|Alta|Urgente)$")] public string Prioridade { get; init; } = "Normal";
+    [Required, RegularExpression("^(Baixo|Médio|Alto)$")] public string NivelComplexidade { get; init; } = "Baixo";
+    [ReadOnly(true)] public int Pontos { get; init; } = 5;
     [ReadOnly(true)] public StatusChamado Status { get; init; } = StatusChamado.Aberto;
     [ReadOnly(true)] public string EtapaAtendimento { get; init; } = "Aberto";
     [StringLength(160)] public string? Equipamento { get; init; }

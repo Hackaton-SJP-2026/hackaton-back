@@ -59,7 +59,7 @@ public sealed class PortalUsuarioController : ControllerBase
         {
             Pagina = pagina, TamanhoPagina = tamanhoPagina, Total = total,
             Chamados = tickets.Select(x => new ChamadoResumoDto(x.Id, x.Descricao, x.Status, x.Prioridade,
-                x.AreaAtendimento, x.Natureza, x.Modalidade, x.UnidadeAtendimentoId,
+                x.NivelComplexidade, x.Pontos, x.AreaAtendimento, x.Natureza, x.Modalidade, x.UnidadeAtendimentoId,
                 unidades.GetValueOrDefault(x.UnidadeAtendimentoId, ""), x.SolicitanteId, "Você",
                 x.TecnicoResponsavelId, x.CreationTime, x.InicioAtendimento, x.EtapaAtendimento))
         });
@@ -118,6 +118,19 @@ public sealed class PortalUsuarioController : ControllerBase
                              select new { e.Id, e.Tipo, e.Descricao, e.DataHora, Autor = autor == null ? "Sistema" : autor.Nome })
             .ToListAsync(cancellationToken);
         return Ok(eventos);
+    }
+
+    [HttpGet("chamados/{chamadoId:guid}/anexos")]
+    public async Task<IActionResult> Anexos(Guid chamadoId, CancellationToken cancellationToken)
+    {
+        if (!Claims(out var userId, out var tenantId)) return Forbid();
+        if (!await MeuChamado(chamadoId, userId, tenantId, cancellationToken)) return NotFound();
+        var anexos = await _db.AnexosChamado.AsNoTracking().Where(x => x.ChamadoId == chamadoId)
+            .OrderBy(x => x.DataHora).Select(x => new
+            {
+                x.Id, x.NomeArquivo, x.TipoConteudo, x.TamanhoBytes, x.TipoAnexo, x.DataHora, x.ConteudoBase64
+            }).ToListAsync(cancellationToken);
+        return Ok(anexos);
     }
 
     [HttpGet("chamados/{chamadoId:guid}/comentarios")]
