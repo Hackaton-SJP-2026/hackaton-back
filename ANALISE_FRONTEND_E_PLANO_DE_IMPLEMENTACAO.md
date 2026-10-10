@@ -88,6 +88,22 @@ Campos: descrição; impacto no serviço (pessoas/unidades afetadas e existênci
 
 Prioridade e pontos devem seguir regra configurada, sem permitir que o solicitante manipule livremente pontuação ou prioridade alta. Um chamado de software pode não ter equipamento físico. Local deve apontar para unidade cadastrada, evitando distância calculada a partir de nome em texto.
 
+### Unidade de atendimento e atribuição imediata
+
+Regra adicionada: o chamado deve conter o campo `unidade_antecedimento` (ou `unidade_atendimento`, conforme convenção final da equipe) e esse valor deve ser preenchido a partir de um cadastro de unidades no portal web. A unidade representa o local/entidade de atendimento e deve ter identidade própria dentro do sistema.
+
+- [ ] O administrador cadastra unidades de atendimento via web.
+- [ ] Cada técnico pode ser responsável por uma ou mais unidades cadastradas.
+- [ ] Quando um chamado é aberto para uma unidade, o sistema identifica automaticamente os técnicos responsáveis por essa unidade.
+- [ ] O chamado é vinculado imediatamente ao técnico responsável, sem necessidade de atribuição manual adicional.
+- [ ] O vínculo imediato gera aviso/push para o técnico responsável, com identificação da unidade, do chamado e da prioridade.
+- [ ] Se mais de um técnico estiver vinculado à mesma unidade, a regra de atribuição deve obedecer à política configurada: primeiro técnico elegível, fila de disponibilidade, ou atribuição explícita pelo administrador.
+- [ ] A unidade deve constar no cadastro do chamado e no painel de chamados/atendimento para filtrar, consultar e rastrear demandas por local.
+- [ ] O responsável pela unidade recebe todos os chamados abertos para essa unidade e não apenas os chamados de outras áreas/secretarias.
+- [ ] O vínculo por unidade deve coexistir com as regras de cooperação, secretaria e proximidade já previstas; a atribuição por unidade não elimina a necessidade de validar elegibilidade e disponibilidade.
+
+Essa regra é priorizada para a jornada operacional: a unidade deixa de ser apenas um campo descritivo e passa a ser um critério de elegibilidade e de atribuição automática.
+
 ### Vínculo, execução, pausa e tempo
 
 Fluxo proposto: **Aberto → Vinculado → Em andamento ↔ Pausado → Aguardando validação → Resolvido**. Bloqueado representa impedimento e suspende atendimento/tempo ativo conforme regra proposta; manter motivo e histórico. Rejeição da entrega retorna para análise e continuidade.
@@ -517,17 +533,36 @@ Antes de implementar transições, explicitar o efeito da pausa/conclusão do re
 
 Pesos, divisão de crédito, tratamento de ausência de confirmação e parâmetros operacionais continuam pendentes de definição. Estas etapas são planejadas, não funcionalidades concluídas. A sequência não remove requisitos futuros de backend, GPS/push reais, integração com legado e implantação, nem a diferença já documentada entre o escopo atual de IA e o manual.
 
+## 10. Regras de negócio confirmadas para o backend — 10/10/2026
 
-## Retomada do frontend — 09/10/2026
+Esta atualização substitui a necessidade de uma tabela `Secretarias` para o escopo contratado. O produto será vendido a prefeituras municipais e cada prefeitura representa um tenant isolado.
 
-Estado: mapa administrativo e convites por proximidade entregues com mocks. Cooperação em chamado já assumido continua pendente; nenhuma funcionalidade de cooperação foi entregue nesta retomada.
+As referências anteriores a atribuição/notificação por secretaria ficam substituídas por responsabilidade da unidade, vínculo técnico-unidade e proximidade válida. Não persistir secretaria como entidade nem usar secretaria como critério de tenancy. Regras antigas que descrevem Saúde/Educação continuam apenas como exemplos históricos do protótipo e não como requisito de schema.
 
-- [x] Código do mapa, posições, convites, permissões, execução e notificações revisado na retomada.
-- [x] npm run lint aprovado novamente.
-- [x] Verificações de comportamento existentes executadas novamente (C:/Users/Micro/hackaton-map-stage/check.cjs): cadência de 10 minutos; interrupção/retomada; expiração e precisão; autoria da posição após transferência; modalidade remota; competência; convites e deduplicação; cadastro → convite → aceite → execução → conclusão; persistência; rejeição de segundo aceite; falha de armazenamento.
-- [ ] Validar visualmente mapa/modal e convites em desktop e celular. Nenhuma ferramenta de navegador foi disponibilizada nesta sessão; verificações do serviço não substituem essa validação.
-- [ ] Definir política de pausa/conclusão em cooperação e quem encerra a entrega global. Pergunta enviada ao usuário; resposta ainda pendente no momento deste registro.
-- [ ] Implementar oferta → aprovação pelo responsável/administrador → vínculo como colaborador, com eventos e intervalos próprios, sem substituir responsável/secretaria e sem iniciar automaticamente.
-- [ ] Entregas posteriores: perfil/foto → evidências → ranking e pontos.
+### Prefeitura, usuários, técnicos e unidades
 
-Build desta retomada: aprovado; permanece o aviso de bundle acima de 500 kB. Preservadas as alterações locais preexistentes. GPS, push, segundo plano e integração com backend continuam futuros.
+- `Prefeitura` é o cliente/tenant. Usuários, técnicos, unidades e chamados devem ficar vinculados e isolados por prefeitura.
+- Não criar tabela `Secretarias` nesta etapa. As unidades são pontos de atendimento de uma prefeitura.
+- `UnidadeAtendimento` possui nome, endereço e coordenadas obrigatórias de latitude/longitude para permitir localização e proximidade. A migration mantém unidades legadas sem coordenadas como nulas, mas novos cadastros devem informar ambas.
+- `Tecnico` é um perfil próprio ligado a um usuário. Um técnico pode atender várias unidades e uma unidade pode ter vários técnicos; a relação é `TecnicoUnidadeAtendimento`.
+- A unidade escolhida no chamado determina a prefeitura e os técnicos candidatos vinculados a ela. A elegibilidade e disponibilidade ainda precisam ser verificadas antes de atribuição.
+
+### Histórico, comentários e participantes
+
+- `EventoChamado` mantém tipo, descrição, autor opcional para eventos de sistema e data/hora do evento.
+- Abertura do chamado, atribuição/vínculo de responsável e conclusão devem gerar eventos automáticos. O técnico responsável pode registrar eventos descritivos de progresso. Eventos são append-only e não substituem o estado atual do chamado.
+- `ComentarioChamado` guarda comentários do solicitante e dos técnicos, com autor e data/hora. Comentários e eventos são registros diferentes: comentário é conversa; evento é trilha operacional.
+- `ParticipantesChamado` registra técnicos colaboradores mantendo apenas um responsável principal. Vínculo de participante não inicia atendimento automaticamente.
+
+### Localização, push e anexos
+
+- `PosicoesTecnico` armazena latitude, longitude, precisão, data/hora e chamado associado quando houver. Segue a regra anterior de captura durante execução, a cada 10 minutos, interrompida em pausa ou conclusão.
+- `NotificacoesPush` persiste notificações pendentes, enviadas e com falha, incluindo tentativas, horário e chave de deduplicação. `DispositivosPush` guarda endpoints/credenciais de inscrição por usuário para permitir o envio ao dispositivo.
+- `AnexosChamado` guarda metadados e localização do arquivo, autor e tipo. Arquivos devem ficar em armazenamento de objetos/arquivos apropriado; não embutir binários grandes no registro relacional.
+- Para concluir chamado, é obrigatório existir um anexo de imagem classificado como `FotoEntrega`. A conclusão deve validar esse anexo no backend, persistir evento de conclusão e mudar o estado na mesma operação. Só registrar o metadado do anexo não comprova que o upload foi concluído com sucesso.
+
+### Tabelas presentes no modelo atual
+
+`Prefeituras`, `Usuarios`, `UnidadesAtendimento`, `Chamados`, `Tecnicos`, `TecnicoUnidadeAtendimento`, `EventosChamado`, `ComentariosChamado`, `ParticipantesChamado`, `PosicoesTecnico`, `NotificacoesPush`, `DispositivosPush` e `AnexosChamado`.
+
+Essa lista descreve o modelo/schema preparado, não significa que upload de arquivos, envio real de push, atribuição automática, operações de fechamento ou autorização multi-tenant estejam completos. A migration cria uma prefeitura inicial de São José dos Pinhais e dados fictícios de demonstração. A foto e a inscrição de push semeadas são metadados/valores de teste, não arquivos ou dispositivos reais.
