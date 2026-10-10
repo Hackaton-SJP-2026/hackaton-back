@@ -1,3 +1,4 @@
+using Hackaton.Domain.Enums;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
@@ -13,7 +14,8 @@ public sealed record ChamadoDto
     [Required, RegularExpression("^(Hardware|Software)$")] public string Natureza { get; init; } = string.Empty;
     [Required, RegularExpression("^(Remoto|Presencial)$")] public string Modalidade { get; init; } = string.Empty;
     [Required, RegularExpression("^(Baixa|Normal|Alta|Urgente)$")] public string Prioridade { get; init; } = "Normal";
-    [ReadOnly(true)] public string Status { get; init; } = "Aberto";
+    [ReadOnly(true)] public StatusChamado Status { get; init; } = StatusChamado.Aberto;
+    [ReadOnly(true)] public string EtapaAtendimento { get; init; } = "Aberto";
     [StringLength(160)] public string? Equipamento { get; init; }
     [StringLength(100)] public string? Contato { get; init; }
     [Range(1, 100000)] public int PessoasAfetadas { get; init; } = 1;

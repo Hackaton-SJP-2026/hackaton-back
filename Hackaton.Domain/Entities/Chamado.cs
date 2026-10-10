@@ -1,3 +1,4 @@
+using Hackaton.Domain.Enums;
 namespace Hackaton.Domain.Entities;
 
 public sealed class Chamado : EntityAudited
@@ -9,7 +10,8 @@ public sealed class Chamado : EntityAudited
     public string Natureza { get; set; } = string.Empty;
     public string Modalidade { get; set; } = string.Empty;
     public string Prioridade { get; set; } = "Normal";
-    public string Status { get; set; } = "Aberto";
+    public StatusChamado Status { get; set; } = StatusChamado.Aberto;
+    public string EtapaAtendimento { get; set; } = "Aberto";
     public string? Equipamento { get; set; }
     public string? Contato { get; set; }
     public int PessoasAfetadas { get; set; } = 1;

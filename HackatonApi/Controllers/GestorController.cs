@@ -1,3 +1,4 @@
+using Hackaton.Domain.Enums;
 using System.Security.Claims;
 using Hackaton.Domain.Entities;
 using Hackaton.Infrastructure.Data;
@@ -26,7 +27,12 @@ public sealed class GestorController : ControllerBase
         if (desde.HasValue && ate.HasValue && desde > ate) return BadRequest(new { message = "O intervalo de datas é inválido." });
 
         var query = TicketsDaPrefeitura(prefeituraId);
-        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(x => x.Status == status);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!StatusChamadoTexto.TryParse(status, out var statusChamado))
+                return BadRequest(new { message = "Status inválido. Use Aberto, Em Análise ou Resolvido." });
+            query = query.Where(x => x.Status == statusChamado);
+        }
         if (!string.IsNullOrWhiteSpace(prioridade)) query = query.Where(x => x.Prioridade == prioridade);
         if (!string.IsNullOrWhiteSpace(area)) query = query.Where(x => x.AreaAtendimento == area);
         if (unidadeId.HasValue) query = query.Where(x => x.UnidadeAtendimentoId == unidadeId);
@@ -104,7 +110,7 @@ public sealed class GestorController : ControllerBase
             x.AreaAtendimento, x.Natureza, x.Modalidade, x.UnidadeAtendimentoId,
             units.GetValueOrDefault(x.UnidadeAtendimentoId, ""), x.SolicitanteId,
             users.GetValueOrDefault(x.SolicitanteId, ""), x.TecnicoResponsavelId,
-            x.CreationTime, x.InicioAtendimento)).ToList();
+            x.CreationTime, x.InicioAtendimento, x.EtapaAtendimento)).ToList();
     }
 
     private bool Tenant(out Guid prefeituraId)

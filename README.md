@@ -4,16 +4,99 @@ Esqueleto C#/.NET 8 baseado em `C:\Projeto\portifolio-back\portfolio-back` e no
 [guia DDD](GUIA_BACKEND_DDD_HACKATON.md). Mantém as responsabilidades da Application,
 entidades base e serviços genéricos da referência. Não usa CQRS ou MediatR.
 
-## Estado atual
+## Estado atual — 10/10/2026
 
-As bases das cinco camadas estão implementadas. A API usa SQLite local por padrão, disponibiliza
-Swagger em Development e oferece `GET /api/status`. O modelo inicial inclui usuários,
-prefeituras, unidades, chamados e tabelas operacionais; migrations incluem dados fictícios
-de São José dos Pinhais. Login e emissão de tokens ainda não foram implementados.
+Este README é o registro de andamento do backend: atualizar implementação, validação e
+pendências após cada entrega. O trabalho atual está restrito ao backend; o frontend será
+adaptado durante a integração futura. Referências técnicas antigas nas seções seguintes
+devem ser lidas junto deste estado consolidado.
 
-SQLite está habilitado por padrão; validação JWT é opcional e ativada por configuração.
-Com autenticação desativada, ações protegidas retornam 401; nenhuma identidade fictícia
-é criada. O status da API indica apenas que o processo atende HTTP, não saúde do SQLite.
+### O que está implementado
+
+- [x] Cinco projetos .NET 8, bases de entidades, serviços/repositórios genéricos,
+  UnitOfWork, auditoria, cache, Mapster, validação e injeção de dependências.
+- [x] SQLite configurado, modelos e migrations para prefeitura, usuários, unidades,
+  chamados, técnicos e vínculos, eventos, comentários, participantes, posições,
+  dispositivos/notificações push, anexos e lançamentos de pontos.
+- [x] Swagger em Development, CORS, tratamento de erros e GET /api/status.
+- [x] Login web e app com hash de senha e emissão de JWT; definição administrativa de senha.
+- [x] CRUD administrativo de usuários, unidades e chamados, com verificações por prefeitura.
+- [x] Portal do usuário: abertura, listagem, detalhes, eventos e comentários dos próprios chamados.
+- [x] App técnico: consultas por categoria, ranking, registro de posição, eventos e comentários.
+- [x] Gestor: consulta de chamados com filtros/paginação e posições atuais/histórico dos técnicos.
+- [x] Enum StatusChamado com os únicos status públicos: **Aberto, Em Análise e Resolvido**.
+- [x] JSON e Swagger apresentam os três nomes textuais; filtros recusam status inválidos.
+- [x] EtapaAtendimento separada do status público; consultas de fila, execução e GPS usam a etapa.
+- [x] Migration 20261010130004_SepararStatusEtapaChamado preserva as etapas antigas e o histórico,
+  converte os status e interrompe a conversão quando encontra um valor desconhecido.
+
+Entidade/tabela preparada não significa fluxo entregue. Ainda não existem comandos
+operacionais para atribuir, assumir, iniciar, pausar, retomar, concluir ou validar chamados.
+As regras de conclusão e confirmação estão definidas, mas essas operações ainda precisam
+ser implementadas. O ranking consulta lançamentos; sua geração automática não existe.
+
+Autenticação está desabilitada por padrão: ativar Authentication:Enabled e configurar
+Issuer, Audience e SigningKey para usar login/JWT. Com autenticação desabilitada, login
+retorna 503 e ações protegidas retornam 401. GET /api/status verifica somente o processo HTTP.
+
+### O que foi validado na etapa de status
+
+- Build do backend aprovado.
+- Suíte completa: **24 testes aprovados, zero falhas**.
+- Testes novos verificam os três valores JSON, rejeição de valores inválidos, conversão dos
+  oito estados antigos, preservação de eventos, consultas após conversão, aplicação repetida
+  e recusa de status desconhecido sem sobrescrever os registros.
+- Swagger verificado com catálogo textual de status. Expectativa antiga de leitura pública
+  no controller de teste corrigida para 401, preservando a autorização já existente na base.
+- Nova migration validada sobre schema legado preparado em SQLite temporário.
+
+Essas verificações não comprovam login operacional, isolamento completo entre prefeituras,
+push, GPS em aparelho, Docker ou jornada integrada. Os testes atuais incluem infraestrutura
+e a nova mudança de status; os fluxos de negócio futuros precisam de seus próprios testes.
+
+### Próxima etapa: corrigir migrations e preparar o banco
+
+- [ ] Corrigir os seeds históricos: a execução desde um banco vazio falhou porque operações
+  InsertData não encontram metadados de coluna no TargetModel (erro em Prefeituras.Ativa).
+- [ ] Validar a cadeia completa de migrations em banco SQLite novo e conferir os dados demonstrativos.
+- [ ] Validar a atualização de banco existente com preservação de registros e histórico.
+- [ ] Aplicar a migration de status ao banco operacional/local e registrar a verificação.
+
+**A migration de status ainda não foi aplicada ao banco operacional.** Os testes aprovados
+da nova migration usam schema legado preparado e não certificam a cadeia histórica de seeds.
+
+### Pendências seguintes, na ordem recomendada
+
+1. **Técnicos e unidades:** APIs de gestão de técnicos, disponibilidade e vínculos técnico-unidade;
+   consulta de unidades autorizadas para o solicitante; competências/tipos compatíveis.
+2. **Contratos:** alinhar tipos de atendimento, campos do chamado, identificação/número público
+   e papéis; prefeitura é o tenant e unidade define responsabilidade. Sem tabela Secretarias.
+3. **Atribuição:** atribuir automaticamente por unidade, registrar evento/aviso e tratar ausência
+   ou múltiplos candidatos; permitir atribuição/transferência administrativa com justificativa.
+4. **Execução:** assumir, iniciar, pausar, bloquear, retomar e concluir; intervalos persistidos,
+   timestamps do servidor, uma execução ativa por técnico, concorrência e idempotência.
+5. **Entrega e validação:** upload/listagem/download de anexos; exigir foto FotoEntrega realmente
+   enviada na conclusão; confirmação/nota do solicitante, pendência e devolução administrativa.
+6. **Comunicação/localização:** central de avisos e leitura, inscrição de dispositivos, geração
+   e envio real de push com tentativas; proximidade e dados suficientes para mapa administrativo.
+7. **Cooperação:** oferta/aprovação, participantes com tempos próprios e política de encerramento global.
+8. **Gamificação:** créditos provisórios/confirmados/revisão gerados nas transições, ajustes sem duplicação,
+   rankings técnico/administrativo, período America/Sao_Paulo, empates e dez patentes; equipes depois.
+9. **Perfil e acompanhamento:** edição/foto próprias, indicadores administrativos e auditoria adequada.
+10. **Qualidade e operação:** testes de autorização/isolamento por prefeitura e jornada completa;
+    adequar controllers ao fluxo AppService/DomainService/Repository/UoW; validar implantação,
+    migrations, persistência e Docker. Integração com legado e frontend permanece futura.
+
+### Priorização por IA — entrega futura
+
+O usuário definiu que a prioridade será determinada por um agente de IA a integrar depois.
+Não implementar matriz manual ou agente nesta fase. O campo Prioridade já existe; abertura
+pelo portal usa Normal como fallback atual.
+
+A interface para o agente ainda é uma proposta: entrada com dados/impacto do chamado,
+saída com prioridade e justificativa, origem/versão, histórico e reprocessamento idempotente.
+Sua implementação deve ficar no backend, sem bloquear abertura/atendimento quando o agente
+estiver indisponível. Essa preparação não foi implementada na entrega de status.
 
 ## Requisitos e execução
 
@@ -24,7 +107,7 @@ precisem apenas do SDK 8, converta para `.sln` antes de executar comandos da sol
 Com SDK compatível e runtime ASP.NET Core 8 instalado no sistema:
 
 ```powershell
-cd C:\Projeto\Hackaton-backend
+cd C:\Projeto\Hackaton\Hackaton-backend
 dotnet restore Hackaton.slnx
 dotnet build Hackaton.slnx --no-restore
 dotnet run --project HackatonApi/HackatonApi.csproj --launch-profile http
@@ -35,7 +118,7 @@ em `$env:USERPROFILE\.dotnet-hackaton8`, pelo [script oficial da Microsoft](http
 PATH global não foram substituídos. Para executar com esse runtime local:
 
 ```powershell
-cd C:\Projeto\Hackaton-backend
+cd C:\Projeto\Hackaton\Hackaton-backend
 .\scripts\run-local.ps1
 ```
 
@@ -182,17 +265,18 @@ dotnet ef database update --project Hackaton.Infrastructure --startup-project Ha
 
 Com o runtime apenas na pasta local, definir DOTNET_ROOT e DOTNET_ROOT_X64 conforme
 a seção de testes antes de usar dotnet-ef. As migrations não são aplicadas automaticamente
-no boot. O seed é demonstrativo e não cria senhas nem credenciais reais.
+no boot. O seed é demonstrativo; uma migration posterior inclui hashes de senhas de teste.
+A execução completa dos seeds ainda requer a correção registrada no estado atual.
 
 SQLite aceita um escritor de cada vez. Esta escolha simplifica o desenvolvimento
 local; os limites de concorrência devem ser avaliados conforme o produto evoluir.
 
 ## HTTP, Swagger, erros e autenticação
 
-BaseController usa `api/[controller]`: GET coleção/Guid públicos, POST/PUT/DELETE
-restritos a Admin. POST e PUT retornam 200; DELETE retorna 204; item ausente retorna 404.
+BaseController usa `api/[controller]`: GET/POST/PUT/DELETE restritos a Gestor/Admin. POST e PUT retornam 200; DELETE retorna 204; item ausente retorna 404.
 Endpoints não CRUD podem usar ControllerBase e AppService próprio, como na referência.
-Não existem controllers concretos de negócio nesta etapa.
+Controllers concretos de usuários, unidades, chamados, autenticação e portais já existem.
+A base atual exige Gestor/Admin também para leituras CRUD; as controllers aplicam verificações adicionais por prefeitura.
 
 Filtros Swagger marcam propriedades ReadOnly e criam schema de entrada sem elas.
 Isso documenta os campos, sem substituir a defesa do AppService contra Id do cliente.
@@ -216,8 +300,8 @@ $env:JwtSettings__SigningKey = 'SEU_SEGREDO_ALEATORIO_COM_PELO_MENOS_32_BYTES'
 
 Não usar o placeholder como chave real. Quando ativado, JWT exige issuer, audience e chave,
 valida assinatura/validade com ClockSkew zero. Tokens de Admin devem conter role=Admin
-e Id em sub. Ainda não existem geração de token, usuários, BCrypt, refresh ou logout.
-Essas funcionalidades dependem do domínio que será anunciado no hackathon.
+e Id em sub. Login, usuários e emissão de token já existem, conforme a seção de APIs abaixo.
+Senhas usam PasswordHasher do ASP.NET Core Identity; não há refresh token ou revogação/logout de JWT.
 
 CORS permite `http://localhost:5173` por padrão. Ajustar AllowedOrigins em configuração
 ou `AllowedOrigins__0` por ambiente. O pipeline aplica CORS antes de autenticação/autorização.
@@ -259,7 +343,7 @@ preservação da criação, invalidação de cache, rollback, status/Swagger sem
 autorização de escrita, tradução de erros e ausência de detalhes em Production.
 
 Os testes usam SQLite em memória e arquivo temporário. Não há emissão de token ou banco externo validado;
-a integração com o frontend ainda não foi implementada. A base está pronta para receber as regras do produto.
+a integração com o frontend ainda não foi implementada. O estado consolidado acima registra as APIs e regras já entregues.
 
 Verificações realizadas em 08/10/2026: restore e build aprovados (zero erros/avisos),
 12 testes aprovados, dotnet-ef restaurado e execução pelo script local conferida.
@@ -346,7 +430,7 @@ A imagem não contém o banco de dados existente no computador.
 Com Docker Engine ou Docker Desktop em modo Linux e Compose v2 instalado:
 
 ```powershell
-cd C:\Projeto\Hackaton-backend
+cd C:\Projeto\Hackaton\Hackaton-backend
 docker compose up --build -d
 docker compose logs -f api
 ```
@@ -448,3 +532,17 @@ Se Docker não aparecer, recarregar a solução e conferir as Container Tools no
 e o suporte a desenvolvimento ASP.NET/web. Se ocorrer erro, consultar a janela Saída
 na categoria Container Tools/Docker e copiar a mensagem para diagnóstico.
 A execução pela interface do Visual Studio ainda precisa ser validada no ambiente com Docker ativo.
+
+
+## Status do chamado — 10/10/2026
+
+Implementação, validações e pendência de aplicação da migration estão consolidadas em
+Estado atual no início deste README. O escopo permanece somente backend. As alterações
+de status feitas inicialmente no frontend foram desfeitas a pedido do usuário; a adaptação
+do frontend será realizada durante a integração.
+
+Enum interno: Aberto = 0, EmAnalise = 1, Resolvido = 2. A API apresenta os nomes
+Aberto, Em Análise e Resolvido; a coluna SQLite usa os nomes internos do enum.
+EtapaAtendimento preserva vínculo, execução, pausa, bloqueio e espera de validação/análise.
+Concluir deve manter Em Análise e confirmar deve marcar Resolvido quando esses comandos
+forem implementados. A simplificação de status não implementa essas transições por si só.

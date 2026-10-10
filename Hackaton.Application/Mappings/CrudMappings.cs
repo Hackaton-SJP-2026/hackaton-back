@@ -29,6 +29,7 @@ public sealed class ChamadoMapping : IRegister
         config.NewConfig<ChamadoDto, Chamado>()
             .Ignore(x => x.Id)
             .Ignore(x => x.Status)
+            .Ignore(x => x.EtapaAtendimento)
             .Ignore(x => x.TecnicoResponsavelId)
             .Ignore(x => x.InicioAtendimento);
         config.NewConfig<Chamado, ChamadoDto>();

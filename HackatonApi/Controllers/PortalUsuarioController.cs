@@ -1,3 +1,4 @@
+using Hackaton.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Hackaton.Application.DTOs;
@@ -38,7 +39,12 @@ public sealed class PortalUsuarioController : ControllerBase
         if (desde.HasValue && ate.HasValue && desde > ate) return BadRequest(new { message = "O intervalo de datas é inválido." });
         var query = _db.Chamados.AsNoTracking().Where(c => c.SolicitanteId == usuarioId
             && _db.UnidadesAtendimento.Any(u => u.Id == c.UnidadeAtendimentoId && u.PrefeituraId == prefeituraId));
-        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(x => x.Status == status);
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (!StatusChamadoTexto.TryParse(status, out var statusChamado))
+                return BadRequest(new { message = "Status inválido. Use Aberto, Em Análise ou Resolvido." });
+            query = query.Where(x => x.Status == statusChamado);
+        }
         if (!string.IsNullOrWhiteSpace(prioridade)) query = query.Where(x => x.Prioridade == prioridade);
         if (unidadeId.HasValue) query = query.Where(x => x.UnidadeAtendimentoId == unidadeId.Value);
         if (desde.HasValue) query = query.Where(x => x.CreationTime >= desde.Value.ToUniversalTime());
@@ -55,7 +61,7 @@ public sealed class PortalUsuarioController : ControllerBase
             Chamados = tickets.Select(x => new ChamadoResumoDto(x.Id, x.Descricao, x.Status, x.Prioridade,
                 x.AreaAtendimento, x.Natureza, x.Modalidade, x.UnidadeAtendimentoId,
                 unidades.GetValueOrDefault(x.UnidadeAtendimentoId, ""), x.SolicitanteId, "Você",
-                x.TecnicoResponsavelId, x.CreationTime, x.InicioAtendimento))
+                x.TecnicoResponsavelId, x.CreationTime, x.InicioAtendimento, x.EtapaAtendimento))
         });
     }
 

@@ -1,4 +1,4 @@
-﻿# Análise do frontend e passo a passo de implementação — Missão SJP
+# Análise do frontend e passo a passo de implementação — Missão SJP
 
 Data da análise inicial: 09/10/2026. Revisão: regras de negócio informadas pelo usuário incorporadas nesta versão.
 
@@ -566,3 +566,12 @@ As referências anteriores a atribuição/notificação por secretaria ficam sub
 `Prefeituras`, `Usuarios`, `UnidadesAtendimento`, `Chamados`, `Tecnicos`, `TecnicoUnidadeAtendimento`, `EventosChamado`, `ComentariosChamado`, `ParticipantesChamado`, `PosicoesTecnico`, `NotificacoesPush`, `DispositivosPush` e `AnexosChamado`.
 
 Essa lista descreve o modelo/schema preparado, não significa que upload de arquivos, envio real de push, atribuição automática, operações de fechamento ou autorização multi-tenant estejam completos. A migration cria uma prefeitura inicial de São José dos Pinhais e dados fictícios de demonstração. A foto e a inscrição de push semeadas são metadados/valores de teste, não arquivos ou dispositivos reais.
+
+
+## Status do chamado — 10/10/2026
+
+Catálogo vigente: **Aberto, Em Análise e Resolvido**. Esta atualização substitui grafias anteriores. Vínculo, execução, pausa, bloqueio e espera de validação/análise são etapas internas. Conclusão pelo técnico mantém Em Análise; confirmação do solicitante marca Resolvido.
+
+Backend: enum StatusChamado, resposta JSON textual e filtro com validação do catálogo. EtapaAtendimento preserva os estados operacionais anteriores. Migration 20261010130004_SepararStatusEtapaChamado converte dados sem apagar histórico e recusa status desconhecidos. Migration ainda não aplicada ao banco operacional nesta entrega.
+
+Escopo atual: somente backend. As alterações de status feitas inicialmente no frontend foram desfeitas a pedido do usuário; sua adaptação fica para a integração futura. Priorização por IA permanece para entrega futura.

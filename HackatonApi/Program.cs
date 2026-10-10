@@ -22,10 +22,18 @@ if (!string.IsNullOrWhiteSpace(port))
         throw new InvalidOperationException("PORT deve ser uma porta entre 1 e 65535.");
     builder.WebHost.UseUrls($"http://0.0.0.0:{number}");
 }
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new HackatonApi.Serialization.StatusChamadoJsonConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    options.MapType<Hackaton.Domain.Enums.StatusChamado>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Enum = Enum.GetValues<Hackaton.Domain.Enums.StatusChamado>()
+            .Select(status => (Microsoft.OpenApi.Any.IOpenApiAny)new Microsoft.OpenApi.Any.OpenApiString(
+                Hackaton.Domain.Enums.StatusChamadoTexto.Texto(status))).ToList()
+    });
     options.SchemaFilter<ApplyReadOnlyAttributeSchemaFilter>();
     options.OperationFilter<HideReadOnlyInRequestBodyFilter>();
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme

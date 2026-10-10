@@ -41,7 +41,14 @@ public sealed class ApiTests
         using var client = factory.CreateClient();
         (await client.GetAsync("/api/status")).StatusCode.Should().Be(HttpStatusCode.OK);
         (await client.GetAsync("/swagger/v1/swagger.json")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await client.GetAsync("/api/test")).StatusCode.Should().Be(HttpStatusCode.OK);
+        // A base CRUD exige Gestor/Admin também nas leituras.
+        (await client.GetAsync("/api/test")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        using var swagger = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json"));
+        var status = swagger.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("ChamadoDto").GetProperty("properties").GetProperty("status");
+        status.GetProperty("type").GetString().Should().Be("string");
+        status.GetProperty("enum").EnumerateArray().Select(x => x.GetString())
+            .Should().Equal("Aberto", "Em Análise", "Resolvido");
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using Hackaton.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Hackaton.Domain.Entities;
@@ -30,14 +31,14 @@ public sealed class AppTecnicoController : ControllerBase
         switch (categoria.ToLowerInvariant())
         {
             case "abertos":
-                query = query.Where(c => c.Status == "Aberto" && c.TecnicoResponsavelId == null
+                query = query.Where(c => c.Status == StatusChamado.Aberto && c.TecnicoResponsavelId == null
                     && _db.TecnicoUnidadesAtendimento.Any(v => v.TecnicoId == tecnicoId && v.UnidadeAtendimentoId == c.UnidadeAtendimentoId && v.Ativo));
                 break;
             case "pendentes":
-                query = query.Where(c => c.TecnicoResponsavelId == tecnicoId && c.Status == "Vinculado");
+                query = query.Where(c => c.TecnicoResponsavelId == tecnicoId && c.Status == StatusChamado.EmAnalise && c.EtapaAtendimento == "Vinculado");
                 break;
             case "em-andamento":
-                query = query.Where(c => c.Status == "Em andamento" || c.Status == "Pausado" || c.Status == "Bloqueado")
+                query = query.Where(c => c.Status == StatusChamado.EmAnalise && (c.EtapaAtendimento == "Em andamento" || c.EtapaAtendimento == "Pausado" || c.EtapaAtendimento == "Bloqueado"))
                     .Where(c => c.TecnicoResponsavelId == tecnicoId || _db.ParticipantesChamado.Any(p => p.ChamadoId == c.Id && p.TecnicoId == tecnicoId && p.DataDesvinculo == null));
                 break;
             default:
@@ -94,7 +95,7 @@ public sealed class AppTecnicoController : ControllerBase
         if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180
             || request.PrecisaoMetros is < 0 or > 10000) return BadRequest(new { message = "Coordenadas ou precisão inválidas." });
         if (!request.ChamadoId.HasValue || !await _db.Chamados.AsNoTracking().AnyAsync(c => c.Id == request.ChamadoId.Value
-                && c.Status == "Em andamento"
+                && c.Status == StatusChamado.EmAnalise && c.EtapaAtendimento == "Em andamento"
                 && (c.TecnicoResponsavelId == tecnicoId || _db.ParticipantesChamado.Any(p => p.ChamadoId == c.Id && p.TecnicoId == tecnicoId && p.DataDesvinculo == null))
                 && _db.UnidadesAtendimento.Any(u => u.Id == c.UnidadeAtendimentoId && u.PrefeituraId == prefeituraId), cancellationToken))
             return NotFound();
@@ -189,7 +190,7 @@ public sealed class AppTecnicoController : ControllerBase
             x.AreaAtendimento, x.Natureza, x.Modalidade, x.UnidadeAtendimentoId,
             unidades.GetValueOrDefault(x.UnidadeAtendimentoId, ""), x.SolicitanteId,
             usuarios.GetValueOrDefault(x.SolicitanteId, ""), x.TecnicoResponsavelId,
-            x.CreationTime, x.InicioAtendimento)).ToList();
+            x.CreationTime, x.InicioAtendimento, x.EtapaAtendimento)).ToList();
     }
 
     private bool Identidade(out Guid usuarioId, out Guid tecnicoId, out Guid prefeituraId)
@@ -204,10 +205,10 @@ public sealed class AppTecnicoController : ControllerBase
 public sealed record PosicaoRequest([Required] double Latitude, [Required] double Longitude,
     [Range(0, 10000)] double? PrecisaoMetros, [Required] Guid? ChamadoId);
 
-public sealed record ChamadoResumoDto(Guid Id, string Descricao, string Status, string Prioridade,
+public sealed record ChamadoResumoDto(Guid Id, string Descricao, StatusChamado Status, string Prioridade,
     string AreaAtendimento, string Natureza, string Modalidade, Guid UnidadeAtendimentoId,
     string Unidade, Guid SolicitanteId, string Solicitante, Guid? TecnicoResponsavelId,
-    DateTime AbertoEm, DateTime? InicioAtendimento);
+    DateTime AbertoEm, DateTime? InicioAtendimento, string EtapaAtendimento);
 
 public sealed record RankingTecnicoDto(Guid TecnicoId, string Nome, string? FotoUrl,
     int PontosConfirmados, int PontosProvisorios, int PontosNoPeriodo, int Posicao = 0);
