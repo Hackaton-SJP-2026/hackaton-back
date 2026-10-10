@@ -29,11 +29,13 @@ public sealed class MariaDbConfigurationTests
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         context.Should().BeSameAs(scope.ServiceProvider.GetRequiredService<MariaDbAppDbContext>());
         context.Database.ProviderName.Should().Be("Pomelo.EntityFrameworkCore.MySql");
-        context.Database.GetMigrations().Should().ContainSingle().Which.Should().EndWith("_InicialMariaDb");
+        context.Database.GetMigrations().Should().HaveCount(2);
+        context.Database.GetMigrations().Should().OnlyContain(x => x.EndsWith("_InicialMariaDb") || x.EndsWith("_AtualizacoesEquipeMariaDb"));
         var script = context.GetService<IMigrator>().GenerateScript();
         script.Should().Contain("utf8mb4").And.Contain("char(36)").And.Contain("datetime(6)");
         script.Should().Contain("ascii_bin").And.NotContain("CREATE TEMP TABLE");
         script.Should().Contain("EtapaAtendimento").And.Contain("PasswordHash");
+        script.Should().Contain("UnidadeResponsavelId").And.Contain("longtext");
         using var otherScope = provider.CreateScope();
         context.Should().NotBeSameAs(otherScope.ServiceProvider.GetRequiredService<AppDbContext>());
     }

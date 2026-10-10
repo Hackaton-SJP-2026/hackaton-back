@@ -626,3 +626,7 @@ forem implementados. A simplificação de status não implementa essas transiç�
 - [ ] Validar interface em navegador e celular.
 
 O frontend usa VITE_AUTH_MODE=api, VITE_API_URL=http://localhost:5286 e VITE_PREFEITURA_ID por instalação. O ID demonstrativo do seed é 00000000-0000-0000-0000-000000000001. Não expor SigningKey no frontend. Documentação de configuração e comportamento atualizada no README e no plano do frontend. O escopo somente backend descrito na entrega de status permanece histórico; esta etapa foi autorizada para integrar o login no frontend.
+
+## Integração das alterações da equipe antes do push — 10/10/2026
+
+Commit remoto baee93e incorporado, preservando novos controllers e regras. Migration MariaDB 20261010132742_AtualizacoesEquipeMariaDb aplicada na Hostinger para responsável por unidade, pontos/patente, complexidade e conteúdo de anexos. Índice filtrado do SQLite adaptado para coluna calculada com RTRIM e índice único, permitindo vários colaboradores e somente um responsável por unidade. Base64 usa longtext no MariaDB. Duas migrations aplicadas, zero pendentes. A primeira tentativa de atualização parou na expressão calculada; após corrigir o padding CHAR, a aplicação foi retomada sem remover dados. Verificações EF em transação revertida e 27 testes aprovados.

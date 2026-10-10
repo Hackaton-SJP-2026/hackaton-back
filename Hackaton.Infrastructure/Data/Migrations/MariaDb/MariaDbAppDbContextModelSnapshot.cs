@@ -35,6 +35,9 @@ namespace Hackaton.Infrastructure.Data.Migrations.MariaDb
                     b.Property<Guid>("ChamadoId")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("ConteudoBase64")
+                        .HasColumnType("longtext");
+
                     b.Property<DateTime>("CreationTime")
                         .HasColumnType("datetime(6)");
 
@@ -146,7 +149,15 @@ namespace Hackaton.Infrastructure.Data.Migrations.MariaDb
                     b.Property<bool>("NecessitaMaterial")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("NivelComplexidade")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<int>("PessoasAfetadas")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Pontos")
                         .HasColumnType("int");
 
                     b.Property<string>("Prioridade")
@@ -602,6 +613,14 @@ namespace Hackaton.Infrastructure.Data.Migrations.MariaDb
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("Patente")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("Pontos")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("UsuarioId")
                         .HasColumnType("char(36)");
 
@@ -634,15 +653,26 @@ namespace Hackaton.Infrastructure.Data.Migrations.MariaDb
                     b.Property<Guid?>("ModificationUserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("Responsavel")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<Guid>("TecnicoId")
                         .HasColumnType("char(36)");
 
                     b.Property<Guid>("UnidadeAtendimentoId")
                         .HasColumnType("char(36)");
 
+                    b.Property<Guid?>("UnidadeResponsavelId")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("char(36)")
+                        .HasComputedColumnSql("CASE WHEN Responsavel = 1 THEN RTRIM(UnidadeAtendimentoId) ELSE NULL END", true);
+
                     b.HasKey("Id");
 
                     b.HasIndex("UnidadeAtendimentoId");
+
+                    b.HasIndex("UnidadeResponsavelId")
+                        .IsUnique();
 
                     b.HasIndex("TecnicoId", "UnidadeAtendimentoId")
                         .IsUnique();

@@ -39,6 +39,26 @@ try
         throw new InvalidOperationException("Roundtrip de chamado divergente.");
     var found = await db.Usuarios.SingleAsync(x => x.PrefeituraId == prefeitura.Id && x.Email.ToLower() == user.Email.ToLower() && x.Ativo);
     if (found.Id != user.Id) throw new InvalidOperationException("Consulta do login divergente.");
+    var helperUser = new Usuario { Nome = "Colaborador temporário", Email = Guid.NewGuid()+"@example.test", PrefeituraId = prefeitura.Id };
+    var helper = new Tecnico { UsuarioId = helperUser.Id };
+    var responsible = new TecnicoUnidadeAtendimento { TecnicoId = tecnico.Id, UnidadeAtendimentoId = unidade.Id, Responsavel = true };
+    var collaborator = new TecnicoUnidadeAtendimento { TecnicoId = helper.Id, UnidadeAtendimentoId = unidade.Id, Responsavel = false };
+    var evidence = new AnexoChamado { ChamadoId = chamado.Id, AutorUsuarioId = user.Id,
+        NomeArquivo = "teste.txt", TipoConteudo = "text/plain", Localizacao = "test://temporario", TipoAnexo = "FotoEntrega",
+        ConteudoBase64 = new string('A', 100000), TamanhoBytes = 75000 };
+    db.AddRange(helperUser, helper, responsible, collaborator, evidence);
+    await db.SaveChangesAsync();
+    db.ChangeTracker.Clear();
+    if ((await db.AnexosChamado.SingleAsync(x => x.Id == evidence.Id)).ConteudoBase64?.Length != 100000)
+        throw new InvalidOperationException("Base64 acima de 64 KB não foi preservado.");
+    var conflict = await db.TecnicoUnidadesAtendimento.SingleAsync(x => x.Id == collaborator.Id);
+    conflict.Responsavel = true;
+    try {
+        await db.SaveChangesAsync();
+        throw new InvalidOperationException("Banco permitiu dois responsáveis na mesma unidade.");
+    } catch (DbUpdateException error) when (error.InnerException is MySqlException { Number: 1062 }) {
+        Console.WriteLine("Responsável único, múltiplos colaboradores e Base64 acima de 64 KB aprovados.");
+    }
     Console.WriteLine("EF: escrita/leitura, GUIDs, vínculos, consulta do login, status e Unicode aprovados.");
 }
 finally
